@@ -1,0 +1,2490 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bodet Scorepad</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --amarelo: #f7c932;
+    --amarelo-borda: #e8b923;
+    --preto: #000;
+    --verde: #138a1c;
+    --azul: #0b0b8f;
+    --branco: #fff;
+
+    /* cores de cada equipa (camisola e texto), mudadas na configuração */
+    --cor-a: #138a1c;
+    --texto-a: #fff;
+    --cor-b: #0b0b8f;
+    --texto-b: #fff;
+    --vermelho: #e02020;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #222;
+    font-family: 'Roboto', Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* Consola (caixa da mesa) com tamanho fixo 1340x680, escalada para caber na janela */
+  #consola {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 1340px; height: 680px;
+    background: linear-gradient(#3a3a3a, #1c1c1c);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.12);
+    transform-origin: center center;
+    user-select: none;
+  }
+
+  /* Ecrã tátil 960x600 dentro da consola */
+  #ecra {
+    position: absolute;
+    left: 190px; top: 40px;
+    width: 960px; height: 600px;
+    background: var(--preto);
+    box-shadow: 0 0 0 6px #0d0d0d;
+    overflow: hidden;
+  }
+
+  /* ---------- BARRA DE TOPO ---------- */
+  #topo-esq {
+    position: absolute; left: 0; top: 0;
+    width: 290px; height: 68px;
+    background: var(--amarelo);
+    clip-path: polygon(0 0, 100% 0, 100% 66%, 77% 100%, 0 100%);
+  }
+  #topo-dir {
+    position: absolute; left: 286px; top: 0;
+    width: 674px; height: 46px;
+    background: var(--amarelo);
+    display: flex; align-items: center;
+  }
+  .topo-btn {
+    position: absolute; top: 6px;
+    width: 70px; height: 54px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #btn-home { left: 22px; }
+  #btn-menu { left: 128px; }
+  #sep-menu {
+    position: absolute; left: 118px; top: 10px;
+    width: 2px; height: 46px; background: #333;
+  }
+
+  .icone-topo {
+    height: 46px;
+    display: flex; align-items: center; justify-content: center;
+    border-right: 1.5px solid #333;
+  }
+  .icone-topo:last-child { border-right: none; }
+  .icone-topo svg { display: block; }
+  #ic-lock  { width: 64px; }
+  #ic-luz   { width: 62px; }
+  #ic-buz   { width: 62px; }
+  #ic-rede  { width: 62px; }
+  #ic-usb   { width: 62px; }
+  #ic-bat   { width: 62px; }
+  #ic-hora  { width: 190px; font-size: 24px; color: #222; }
+  #ic-power { flex: 1; }
+
+  /* ---------- CRONÓMETRO ---------- */
+  #trapezio {
+    position: absolute; left: 0; top: 0;
+    width: 960px; height: 200px;
+    pointer-events: none;
+  }
+  #cronometro {
+    position: absolute; left: 300px; top: 64px;
+    width: 360px; text-align: center;
+    color: var(--amarelo);
+    font-size: 96px; font-weight: 700;
+    line-height: 96px;
+    letter-spacing: 1px;
+    cursor: pointer;
+  }
+  #ponto-vermelho {
+    position: absolute; left: 612px; top: 92px;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--vermelho);
+    pointer-events: none;
+  }
+  /* a bola vermelha só aparece com o tempo parado */
+  #ponto-vermelho.a-correr { visibility: hidden; }
+  #periodo {
+    position: absolute; left: 300px; top: 164px;
+    width: 360px; text-align: center;
+    color: var(--branco);
+    font-size: 18px; font-weight: 700;
+  }
+
+  /* ---------- CAMISOLAS ---------- */
+  .camisola {
+    position: absolute; top: 106px;
+    width: 96px; height: 84px;
+  }
+  #camisola-a { left: 11px; }
+  #camisola-b { left: 853px; }
+
+  /* ---------- LISTA DE JOGADORES ---------- */
+  .lista {
+    position: absolute; top: 199px;
+    width: 133px; height: 329px;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    padding: 2px 5px;
+    overflow: hidden;
+    color: var(--branco);
+  }
+  #lista-a { left: 7px; }
+  #lista-b { left: 821px; }
+
+  .jogador {
+    display: flex; align-items: center;
+    height: 27px;
+    font-size: 15px;
+  }
+  .jogador .num   { width: 22px; }
+  .jogador .faltas { flex: 1; display: flex; gap: 2px; }
+  .jogador .faltas span {
+    width: 9px; height: 9px; border-radius: 50%;
+    border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  }
+  /* pintas da cor do texto da equipa, a última vermelha */
+  .jogador .faltas span:last-child         { border-color: var(--vermelho); }
+  .jogador .faltas span.cheia              { background: currentColor; border-color: currentColor; }
+  .jogador .faltas span:last-child.cheia   { background: var(--vermelho); border-color: var(--vermelho); }
+  .lista { cursor: pointer; }
+  .jogador.vazia .faltas { visibility: hidden; }   /* lugar sem jogador */
+
+  /* falta mais recente: pisca 0,3 s cheia / 0,3 s vazia */
+  @keyframes piscar {
+    50% { background: transparent; }
+  }
+  .a-piscar { animation: piscar 0.6s step-end infinite; }
+
+  /* ---------- BOTÕES DAS EQUIPAS ---------- */
+  .painel {
+    position: absolute;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    color: var(--branco);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .verde { background: var(--cor-a); color: var(--texto-a); }
+  .azul  { background: var(--cor-b); color: var(--texto-b); }
+
+  .legenda {
+    position: absolute; bottom: 3px;
+    font-size: 13px; font-style: italic;
+    color: inherit;
+  }
+  .legenda.esq { left: 6px; }
+  .legenda.dir { right: 6px; }
+
+  .nome-equipa { font-size: 34px; font-weight: 700; letter-spacing: 1px; }
+  .pontuacao   { font-size: 84px; font-weight: 900; line-height: 1; margin-top: 4px; }
+  .faltas-eq   { font-size: 44px; font-weight: 700; }
+  .add-pontos  { font-size: 40px; font-weight: 700; }
+
+  .bolas-to { display: flex; gap: 8px; }
+
+  /* pintas de time-out: vazia = arco, usada = bola branca, a decorrer = bola a piscar */
+  .pinta-to {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pinta-to svg { display: block; }
+  .pinta-to.cheia, .pinta-to.a-usar { background: currentColor; }
+  .pinta-to.cheia svg, .pinta-to.a-usar svg { visibility: hidden; }
+  @keyframes piscar-to {
+    50% { background: transparent; }
+  }
+  .pinta-to.a-usar { animation: piscar-to 0.6s step-end infinite; }
+  .time-out { cursor: pointer; }
+
+  #equipa-a  { left: 146px; top: 199px; width: 333px; height: 78px; }
+  #equipa-b  { left: 484px; top: 199px; width: 330px; height: 78px; }
+
+  #faltas-a  { left: 146px; top: 282px; width: 106px; height: 77px; }
+  #timeout-a { left: 258px; top: 282px; width: 221px; height: 77px; }
+  #timeout-b { left: 484px; top: 282px; width: 218px; height: 77px; }
+  #faltas-b  { left: 708px; top: 282px; width: 106px; height: 77px; }
+
+  #score-a   { left: 146px; top: 365px; width: 333px; height: 82px; }
+  #score-b   { left: 484px; top: 365px; width: 330px; height: 82px; }
+
+  #mais1-a { left: 146px; top: 452px; width: 106px; height: 76px; }
+  #mais2-a { left: 258px; top: 452px; width: 106px; height: 76px; }
+  #mais3-a { left: 370px; top: 452px; width: 109px; height: 76px; }
+  #mais1-b { left: 484px; top: 452px; width: 106px; height: 76px; }
+  #mais2-b { left: 596px; top: 452px; width: 106px; height: 76px; }
+  #mais3-b { left: 708px; top: 452px; width: 106px; height: 76px; }
+
+  /* ---------- BOTÕES DE BAIXO ---------- */
+  .btn-baixo {
+    position: absolute; top: 536px;
+    width: 126px; height: 60px;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    background: var(--preto);
+    color: var(--amarelo);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px;
+    font-size: 14px;
+  }
+  #btn-settings { left: 7px; }
+  #btn-message  { left: 143px; }
+  #btn-proximo  { left: 552px; cursor: pointer; }
+  #btn-before   { left: 690px; }
+  #btn-match    { left: 828px; }
+
+  /* faixa do inter-período: tapa os botões de baixo até carregar no START */
+  #faixa-inter {
+    position: absolute; left: 7px; top: 536px;
+    width: 946px; height: 60px;
+    background: #6b6b6b;
+    border-radius: 4px;
+    color: var(--branco);
+    font-size: 22px; font-weight: 700;
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 5;
+  }
+  #faixa-inter.aberta { display: flex; }
+
+  /* ---------- TIME SCROLLER ---------- */
+  #fundo-tempo, #fundo-pontos {
+    position: absolute; left: 0; top: 0;
+    width: 960px; height: 600px;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    z-index: 10;
+  }
+  #fundo-tempo.aberto, #fundo-pontos.aberto { display: block; }
+
+  #popup-tempo, #popup-pontos {
+    position: absolute; left: 300px; top: 130px;
+    width: 360px; height: 340px;
+    background: var(--preto);
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  #titulo-tempo, #titulo-pontos {
+    height: 46px;
+    background: var(--amarelo);
+    color: #222;
+    font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  #rodas {
+    position: absolute; left: 0; top: 66px;
+    width: 356px; height: 180px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px;
+  }
+  .roda {
+    width: 110px; height: 180px;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: none;
+    color: var(--branco);
+    -webkit-mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+            mask-image: linear-gradient(transparent, #000 35%, #000 65%, transparent);
+  }
+  .roda::-webkit-scrollbar { display: none; }
+  .roda div {
+    height: 60px; line-height: 60px;
+    text-align: center;
+    font-size: 48px; font-weight: 700;
+    scroll-snap-align: center;
+  }
+  .roda .espaco { scroll-snap-align: none; }
+  #dois-pontos { color: var(--amarelo); font-size: 48px; font-weight: 700; }
+
+  /* faixa amarela que marca o valor escolhido */
+  #faixa-tempo {
+    position: absolute; left: 40px; top: 126px;
+    width: 276px; height: 60px;
+    border-top: 2px solid var(--amarelo-borda);
+    border-bottom: 2px solid var(--amarelo-borda);
+    pointer-events: none;
+  }
+
+  .btn-popup {
+    position: absolute; top: 268px;
+    width: 126px; height: 52px;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    background: var(--preto);
+    color: var(--amarelo);
+    font-size: 18px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #btn-cancelar, #btn-cancelar-pontos { left: 40px; }
+  #btn-ok, #btn-ok-pontos             { left: 190px; }
+
+  /* ---------- BOTÕES FÍSICOS (fora do ecrã) ---------- */
+  .painel-fisico {
+    position: absolute; top: 40px;
+    width: 140px; height: 600px;
+  }
+  #painel-esq { left: 25px; }
+  #painel-dir { left: 1175px; }
+  #marca {
+    position: absolute; left: 0; top: 10px;
+    width: 140px; text-align: center;
+    color: #888;
+    font-size: 20px; font-weight: 900; letter-spacing: 3px;
+  }
+  .botao-fisico {
+    position: absolute; left: 20px;
+    width: 100px; height: 100px;
+    border-radius: 14px;
+    font-size: 20px; font-weight: 900; letter-spacing: 1px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+  .botao-fisico {
+    background: var(--amarelo);
+    color: #222;
+    box-shadow: 0 8px 0 #a8841a, 0 12px 14px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.45);
+  }
+  #btn-start, #btn-voltar { top: 170px; }
+  #btn-stop,  #btn-horn   { top: 330px; }
+  /* botão carregado: desce como um botão a sério */
+  .botao-fisico.premido {
+    transform: translateY(6px);
+    box-shadow: 0 2px 0 #a8841a, 0 4px 6px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.45);
+  }
+
+  /* ---------- CONTADORES DE TIME-OUT (zona do cronómetro) ---------- */
+  .to-contador {
+    position: absolute; top: 164px;
+    width: 80px; text-align: center;
+    color: var(--branco);
+    font-size: 18px; font-weight: 700;
+    pointer-events: none;
+  }
+  #to-contador-a { left: 316px; }
+  #to-contador-b { left: 564px; }
+
+  /* ---------- POPUP DE TIME-OUT ---------- */
+  #fundo-timeout {
+    position: absolute; left: 0; top: 0;
+    width: 960px; height: 600px;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    z-index: 10;
+  }
+  #fundo-timeout.aberto { display: block; }
+
+  #popup-timeout {
+    position: absolute; left: 300px; top: 130px;
+    width: 360px; height: 340px;
+    background: var(--preto);
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  #titulo-timeout {
+    height: 46px;
+    background: var(--amarelo);
+    color: #222;
+    font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #acerto-timeout {
+    position: absolute; left: 40px; top: 66px;
+    width: 276px; height: 180px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #pintas-timeout {
+    flex: 1;
+    color: var(--branco);
+    display: flex; justify-content: center; gap: 10px;
+  }
+  #pintas-timeout .pinta-to { width: 40px; height: 40px; }
+  #pintas-timeout .pinta-to svg { width: 40px; height: 40px; }
+  #to-menos, #to-mais { width: 56px; height: 56px; font-size: 40px; }
+  /* os botões - e + só aparecem depois de carregar em Correção */
+  #to-menos, #to-mais { visibility: hidden; }
+  #popup-timeout.a-corrigir #to-menos,
+  #popup-timeout.a-corrigir #to-mais { visibility: visible; }
+
+  #btn-start-timeout {
+    left: 40px;
+    background: #00b050;
+    border-color: #00b050;
+    font-size: 22px;
+  }
+  #btn-start-timeout.desligado { opacity: 0.35; cursor: default; }
+  #btn-corrigir-timeout { left: 190px; }
+  #popup-timeout.a-corrigir #btn-corrigir-timeout {
+    background: var(--amarelo);
+    color: #222;
+  }
+
+  /* ---------- HISTÓRICO DE AÇÕES (botão <-) ---------- */
+  #fundo-historico {
+    position: absolute; left: 0; top: 0;
+    width: 960px; height: 600px;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    z-index: 10;
+  }
+  #fundo-historico.aberto { display: block; }
+
+  #popup-historico {
+    position: absolute; left: 300px; top: 130px;
+    width: 360px; height: 340px;
+    background: var(--preto);
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  #titulo-historico {
+    height: 46px;
+    background: var(--amarelo);
+    color: #222;
+    font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #lista-historico {
+    position: absolute; left: 20px; top: 62px;
+    width: 316px; height: 192px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .acao {
+    height: 58px;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    color: var(--branco);
+    font-size: 17px; font-weight: 700;
+    display: flex; align-items: center;
+    padding-left: 12px;
+  }
+  .acao .texto { flex: 1; }
+  .acao .lixo {
+    width: 54px; height: 54px;
+    border-left: 2px solid var(--amarelo-borda);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #sem-acoes {
+    color: #888;
+    font-size: 18px; font-style: italic;
+    text-align: center;
+    margin-top: 70px;
+  }
+  #btn-cancelar-historico { left: 115px; }
+
+  /* ---------- SETTINGS (ecrã inteiro) ---------- */
+  #btn-settings { cursor: pointer; }
+  #fundo-tempo  { z-index: 12; }   /* o scroller do tempo também abre por cima do Settings */
+
+  #lista-settings {
+    position: absolute; left: 7px; top: 58px;
+    width: 946px; height: 468px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .linha-setting {
+    flex: 1;
+    background: #2a2a2a;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 6px;
+    color: var(--branco);
+    display: flex; align-items: center;
+    padding: 0 16px 0 24px;
+  }
+  .linha-setting.tempo { cursor: pointer; }
+  .nome-setting { flex: 1; font-size: 20px; font-weight: 700; }
+  .valor-setting {
+    width: 110px; text-align: center;
+    color: var(--amarelo);
+    font-size: 30px; font-weight: 700;
+  }
+  .linha-setting .btn-acerto {
+    width: 46px; height: 46px;
+    font-size: 32px;
+  }
+  .linha-setting.tempo .valor-setting {
+    width: 172px;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+  }
+  #btn-cancelar-settings { left: 690px; cursor: pointer; }
+  #btn-save-settings     { left: 828px; cursor: pointer; }
+  #btn-cancelar-settings, #btn-save-settings { font-size: 18px; font-weight: 700; }
+
+  /* ---------- EDITAR EQUIPA: POPUP DO NOME ---------- */
+  #equipa-a, #equipa-b { cursor: pointer; }
+
+  .fundo-popup {
+    position: absolute; left: 0; top: 0;
+    width: 960px; height: 600px;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    z-index: 10;
+  }
+  .fundo-popup.aberto { display: block; }
+  .popup {
+    position: absolute; left: 300px; top: 130px;
+    width: 360px; height: 340px;
+    background: var(--preto);
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .titulo-popup {
+    height: 46px;
+    background: var(--amarelo);
+    color: #222;
+    font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .titulo-popup.erro { background: var(--vermelho); color: var(--branco); }
+
+  #input-nome {
+    position: absolute; left: 40px; top: 110px;
+    width: 276px; height: 64px;
+    background: #111;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    color: var(--branco);
+    font-family: inherit; font-size: 30px; font-weight: 700;
+    text-align: center;
+    outline: none;
+    user-select: text;
+  }
+  #btn-config-equipa, #btn-cancelar-nome, #btn-ok-nome {
+    width: 104px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  #btn-config-equipa { left: 18px; }
+  #btn-cancelar-nome { left: 127px; }
+  #btn-ok-nome       { left: 236px; }
+
+  /* ---------- CONFIGURAR EQUIPAS (ecrã inteiro) ---------- */
+  .ecra-inteiro {
+    position: absolute; left: 0; top: 0;
+    width: 960px; height: 600px;
+    background: var(--preto);
+    display: none;
+    z-index: 10;
+  }
+  .ecra-inteiro.aberto { display: block; }
+  .titulo-ecra {
+    height: 46px;
+    background: var(--amarelo);
+    color: #222;
+    font-size: 22px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .cfg-coluna {
+    position: absolute; top: 56px;
+    width: 450px; height: 470px;
+  }
+  #cfg-a { left: 20px; }
+  #cfg-b { left: 490px; }
+  .cfg-letra {
+    height: 24px;
+    color: #aaa;
+    font-size: 16px; font-weight: 700;
+    text-align: center;
+  }
+  .cfg-linha {
+    position: relative;
+    margin-top: 10px;
+    background: #2a2a2a;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 6px;
+    color: var(--branco);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cfg-rotulo {
+    position: absolute; left: 10px; top: 5px;
+    color: #ccc;
+    font-size: 13px; font-style: italic;
+  }
+  .cfg-display { height: 64px; }
+  .cfg-display input {
+    width: 300px; height: 40px; margin-top: 10px;
+    background: transparent;
+    border: none; border-bottom: 1px dashed #777;
+    color: var(--branco);
+    font-family: inherit; font-size: 26px; font-weight: 700;
+    text-align: center;
+    outline: none;
+    user-select: text;
+  }
+  .cfg-jogadores { height: 64px; cursor: pointer; font-size: 18px; font-weight: 700; }
+  .cfg-jogadores svg { position: absolute; right: 14px; top: 10px; }
+  .cfg-cores { height: 270px; cursor: pointer; }
+
+  #btn-cancelar-config { left: 690px; cursor: pointer; }
+  #btn-save-config     { left: 828px; cursor: pointer; }
+  #btn-cancelar-config, #btn-save-config { font-size: 18px; font-weight: 700; }
+
+  /* ---------- LISTA DE JOGADORES (ecrã inteiro, por cima da configuração) ---------- */
+  #ecra-jogadores { z-index: 11; }
+  #grelha-jogadores {
+    position: absolute; left: 7px; top: 58px;
+    width: 946px; height: 468px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(6, 1fr);
+    grid-auto-flow: column;   /* enche a 1ª coluna de cima a baixo e depois a 2ª */
+    gap: 8px 16px;
+  }
+  .linha-jogador {
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    display: flex; align-items: center;
+    padding: 0 24px;
+    font-size: 40px; font-weight: 700;
+    cursor: pointer;
+  }
+  .linha-jogador .vazio { font-size: 18px; font-style: italic; font-weight: 400; opacity: 0.6; }
+  #btn-cancelar-jogadores { left: 690px; cursor: pointer; }
+  #btn-ok-jogadores       { left: 828px; cursor: pointer; }
+  #btn-cancelar-jogadores, #btn-ok-jogadores { font-size: 18px; font-weight: 700; }
+
+  /* ---------- NÚMERO DO JOGADOR (popup com scroller e lixo) ---------- */
+  #fundo-numero { z-index: 12; }
+  #roda-num {
+    position: absolute; left: 40px; top: 66px;
+  }
+  #faixa-num {
+    position: absolute; left: 40px; top: 126px;
+    width: 110px; height: 60px;
+    border-top: 2px solid var(--amarelo-borda);
+    border-bottom: 2px solid var(--amarelo-borda);
+    pointer-events: none;
+  }
+  #linha-nome-jogador {
+    position: absolute; left: 165px; top: 170px;
+    width: 70px;
+    border-bottom: 2px solid #777;
+  }
+  #btn-lixo-jogador {
+    position: absolute; left: 246px; top: 121px;
+  }
+  #btn-cancelar-numero { left: 40px; }
+  #btn-ok-numero       { left: 190px; }
+
+  /* ---------- CORES DA EQUIPA (popup) ---------- */
+  #fundo-cores { z-index: 12; }
+  #popup-cores {
+    left: 200px; top: 90px;
+    width: 560px; height: 420px;
+  }
+  #cores-preview {
+    position: absolute; left: 24px; top: 90px;
+  }
+  .cores-rotulo {
+    position: absolute; left: 230px;
+    color: #ccc;
+    font-size: 15px; font-style: italic;
+  }
+  .cores-opcoes {
+    position: absolute; left: 230px;
+    display: flex; gap: 12px;
+  }
+  #rotulo-cor-camisola { top: 70px; }
+  #opcoes-camisola     { top: 94px; }
+  #rotulo-cor-texto    { top: 180px; }
+  #opcoes-texto        { top: 204px; }
+  .opcao-cor {
+    width: 50px; height: 50px;
+    border: 2px solid #555;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .opcao-cor.escolhida { border: 4px solid var(--amarelo); }
+  #btn-cancelar-cores { left: 140px; top: 348px; }
+  #btn-ok-cores       { left: 290px; top: 348px; }
+
+  /* ---------- MARCAÇÃO DE FALTAS (ecrã inteiro) ---------- */
+  #fundo-faltas {
+    position: absolute; left: 0; top: 0;
+    width: 960px; height: 600px;
+    background: var(--preto);
+    display: none;
+    z-index: 10;
+  }
+  #fundo-faltas.aberto { display: block; }
+
+  #titulo-faltas {
+    height: 46px;
+    background: var(--amarelo);
+    color: #222;
+    font-size: 22px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* duas colunas: 4 | 5, 6 | 7, ... */
+  #grelha-faltas {
+    position: absolute; left: 7px; top: 58px;
+    width: 946px; height: 468px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(6, 1fr);
+    grid-auto-flow: column;   /* enche a 1ª coluna de cima a baixo e depois a 2ª */
+    gap: 8px 16px;
+  }
+  .linha-falta {
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    display: flex; align-items: center;
+    padding: 0 24px;
+    cursor: pointer;
+  }
+  .linha-falta .num { width: 90px; font-size: 40px; font-weight: 700; }
+  .linha-falta .pintas { display: flex; gap: 22px; }
+  .pinta {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid currentColor;
+  }
+  .pinta.vermelha        { border-color: var(--vermelho); }
+  .pinta.cheia           { background: currentColor; }
+  .linha-falta.vazia { opacity: 0.3; pointer-events: none; }
+  .linha-falta.vazia .pintas { visibility: hidden; }
+  .pinta.vermelha.cheia  { background: var(--vermelho); }
+
+  #btn-cancelar-faltas { left: 690px; }
+  #btn-ok-faltas       { left: 828px; }
+  #btn-cancelar-faltas, #btn-ok-faltas {
+    font-size: 18px; font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* ---------- PONTOS ---------- */
+  #score-a, #score-b, #faltas-a, #faltas-b,
+  #mais1-a, #mais2-a, #mais3-a,
+  #mais1-b, #mais2-b, #mais3-b { cursor: pointer; }
+
+  #acerto-pontos {
+    position: absolute; left: 40px; top: 66px;
+    width: 276px; height: 180px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .btn-acerto {
+    width: 70px; height: 70px;
+    border: 2px solid var(--amarelo-borda);
+    border-radius: 4px;
+    background: var(--preto);
+    color: var(--amarelo);
+    font-size: 48px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #valor-pontos {
+    flex: 1; text-align: center;
+    color: var(--branco);
+    font-size: 72px; font-weight: 900;
+  }
+</style>
+</head>
+<body>
+
+<div id="consola">
+
+<div id="ecra">
+
+  <!-- ===== BARRA DE TOPO ===== -->
+  <div id="topo-esq"></div>
+  <div id="sep-menu"></div>
+
+  <div id="btn-home" class="topo-btn">
+    <svg width="46" height="40" viewBox="0 0 46 40" fill="none" stroke="#222" stroke-width="4" stroke-linejoin="round">
+      <path d="M3 20 L23 3 L43 20"/>
+      <path d="M9 15 V37 H19 V25 H27 V37 H37 V15"/>
+    </svg>
+  </div>
+
+  <div id="btn-menu" class="topo-btn">
+    <svg width="48" height="34" viewBox="0 0 48 34" fill="#222">
+      <circle cx="4" cy="4" r="3.5"/>
+      <circle cx="4" cy="17" r="3.5"/>
+      <circle cx="4" cy="30" r="3.5"/>
+      <rect x="13" y="1.5" width="34" height="5" rx="2"/>
+      <rect x="13" y="14.5" width="34" height="5" rx="2"/>
+      <rect x="13" y="27.5" width="34" height="5" rx="2"/>
+    </svg>
+  </div>
+
+  <div id="topo-dir">
+    <div id="ic-lock" class="icone-topo">
+      <svg width="22" height="28" viewBox="0 0 22 28" fill="none" stroke="#222" stroke-width="2.5">
+        <path d="M5 12 V8 a6 6 0 0 1 12 0 V12"/>
+        <rect x="2" y="12" width="18" height="14" rx="2"/>
+        <circle cx="11" cy="19" r="2" fill="#222"/>
+      </svg>
+    </div>
+
+    <div id="ic-luz" class="icone-topo">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#222" stroke-width="2.2" stroke-linecap="round">
+        <path d="M15 1 V4 M4 5 L6 7 M26 5 L24 7 M1 15 H4 M26 15 H29"/>
+        <path d="M10 22 V19 a7 7 0 1 1 10 0 V22 Z"/>
+        <path d="M11 25 H19 M12 28 H18"/>
+      </svg>
+    </div>
+
+    <div id="ic-buz" class="icone-topo">
+      <svg width="34" height="30" viewBox="0 0 34 30" fill="none" stroke-width="2.2">
+        <rect x="6" y="9" width="22" height="13" stroke="#222"/>
+        <path d="M2 2 L32 28 M32 2 L2 28" stroke="var(--vermelho)" stroke-width="2.5"/>
+      </svg>
+    </div>
+
+    <div id="ic-rede" class="icone-topo">
+      <svg width="34" height="30" viewBox="0 0 34 30" fill="#222">
+        <circle cx="17" cy="7" r="5"/>
+        <path d="M8 22 C8 14 26 14 26 22 Z"/>
+        <circle cx="6" cy="26" r="3"/>
+        <circle cx="28" cy="26" r="3"/>
+        <path d="M2 2 L32 28 M32 2 L2 28" stroke="var(--vermelho)" stroke-width="2.5" fill="none"/>
+      </svg>
+    </div>
+
+    <div id="ic-usb" class="icone-topo">
+      <svg width="34" height="20" viewBox="0 0 34 20" fill="#222" stroke="#222" stroke-width="2">
+        <path d="M2 10 H30" fill="none"/>
+        <circle cx="4" cy="10" r="3"/>
+        <path d="M30 6 L34 10 L30 14 Z"/>
+        <path d="M10 10 L15 3 H21" fill="none"/>
+        <rect x="20" y="1" width="4" height="4"/>
+        <path d="M13 10 L18 17 H22" fill="none"/>
+        <circle cx="23" cy="17" r="2"/>
+      </svg>
+    </div>
+
+    <div id="ic-bat" class="icone-topo">
+      <svg width="42" height="24" viewBox="0 0 42 24">
+        <rect x="1.5" y="2" width="35" height="20" rx="2" fill="none" stroke="#222" stroke-width="2.5"/>
+        <rect x="37" y="7" width="4" height="10" fill="#222"/>
+        <text x="19" y="17" text-anchor="middle" font-family="Roboto, Arial" font-size="12" font-weight="700" fill="#222">100</text>
+      </svg>
+    </div>
+
+    <div id="ic-hora" class="icone-topo">05:22</div>
+
+    <div id="ic-power" class="icone-topo">
+      <svg width="28" height="30" viewBox="0 0 28 30" fill="none" stroke="#222" stroke-width="2.5" stroke-linecap="round">
+        <path d="M14 2 V13"/>
+        <path d="M7 6 a11 11 0 1 0 14 0"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ===== CRONÓMETRO ===== -->
+  <svg id="trapezio" viewBox="0 0 960 200">
+    <path d="M250 46 L296 192 L665 192 L711 46" fill="none" stroke="var(--amarelo-borda)" stroke-width="2"/>
+  </svg>
+  <div id="cronometro">60:00</div>
+  <div id="ponto-vermelho"></div>
+  <div id="periodo">Before match</div>
+  <div id="to-contador-a" class="to-contador"></div>
+  <div id="to-contador-b" class="to-contador"></div>
+
+  <!-- ===== CAMISOLAS ===== -->
+  <svg id="camisola-a" class="camisola" viewBox="0 0 100 86">
+    <path d="M30 4 L8 14 L2 34 L18 38 L20 82 L80 82 L82 38 L98 34 L92 14 L70 4 C64 12 36 12 30 4 Z"
+          fill="var(--cor-a)" stroke="var(--amarelo-borda)" stroke-width="2"/>
+    <text x="50" y="62" text-anchor="middle" font-family="Roboto, Arial" font-size="38" font-weight="700" fill="var(--texto-a)">A</text>
+  </svg>
+
+  <svg id="camisola-b" class="camisola" viewBox="0 0 100 86">
+    <path d="M30 4 L8 14 L2 34 L18 38 L20 82 L80 82 L82 38 L98 34 L92 14 L70 4 C64 12 36 12 30 4 Z"
+          fill="var(--cor-b)" stroke="var(--amarelo-borda)" stroke-width="2"/>
+    <text x="50" y="62" text-anchor="middle" font-family="Roboto, Arial" font-size="38" font-weight="700" fill="var(--texto-b)">B</text>
+  </svg>
+
+  <!-- ===== EQUIPAS ===== -->
+  <div id="equipa-a" class="painel verde">
+    <span class="nome-equipa">HOME</span>
+    <span class="legenda esq">Team</span>
+  </div>
+  <div id="equipa-b" class="painel azul">
+    <span class="nome-equipa">GUEST</span>
+    <span class="legenda dir">Team</span>
+  </div>
+
+  <!-- ===== LISTAS DE JOGADORES (preenchidas no script) ===== -->
+  <div id="lista-a" class="lista verde"></div>
+  <div id="lista-b" class="lista azul"></div>
+
+  <!-- ===== FALTAS DE EQUIPA ===== -->
+  <div id="faltas-a" class="painel verde">
+    <span class="faltas-eq">0</span>
+    <span class="legenda esq">Fouls</span>
+  </div>
+  <div id="faltas-b" class="painel azul">
+    <span class="faltas-eq">0</span>
+    <span class="legenda dir">Fouls</span>
+  </div>
+
+  <!-- ===== TIME-OUT ===== -->
+  <div id="timeout-a" class="painel verde time-out">
+    <div class="bolas-to">
+      <span class="pinta-to"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="2"><path d="M26 8 A12 12 0 1 0 26 22"/></svg></span>
+      <span class="pinta-to"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="2"><path d="M26 8 A12 12 0 1 0 26 22"/></svg></span>
+      <span class="pinta-to"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="2"><path d="M26 8 A12 12 0 1 0 26 22"/></svg></span>
+    </div>
+    <span class="legenda esq">Time-out</span>
+  </div>
+  <div id="timeout-b" class="painel azul time-out">
+    <div class="bolas-to">
+      <span class="pinta-to"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="2"><path d="M26 8 A12 12 0 1 0 26 22"/></svg></span>
+      <span class="pinta-to"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="2"><path d="M26 8 A12 12 0 1 0 26 22"/></svg></span>
+      <span class="pinta-to"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="2"><path d="M26 8 A12 12 0 1 0 26 22"/></svg></span>
+    </div>
+    <span class="legenda dir">Time-out</span>
+  </div>
+
+  <!-- ===== SCORE ===== -->
+  <div id="score-a" class="painel verde">
+    <span class="pontuacao">0</span>
+    <span class="legenda esq">Score</span>
+  </div>
+  <div id="score-b" class="painel azul">
+    <span class="pontuacao">0</span>
+    <span class="legenda dir">Score</span>
+  </div>
+
+  <!-- ===== +1 / +2 / +3 ===== -->
+  <div id="mais1-a" class="painel verde"><span class="add-pontos">+1</span></div>
+  <div id="mais2-a" class="painel verde"><span class="add-pontos">+2</span></div>
+  <div id="mais3-a" class="painel verde"><span class="add-pontos">+3</span></div>
+  <div id="mais1-b" class="painel azul"><span class="add-pontos">+1</span></div>
+  <div id="mais2-b" class="painel azul"><span class="add-pontos">+2</span></div>
+  <div id="mais3-b" class="painel azul"><span class="add-pontos">+3</span></div>
+
+  <!-- ===== BOTÕES DE BAIXO ===== -->
+  <div id="btn-settings" class="btn-baixo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--amarelo)" stroke-width="2" stroke-linejoin="round">
+      <path d="M14.7 6.3 a4 4 0 0 1 5.3 -3.6 l-2.6 2.6 1.6 1.6 2.6 -2.6 a4 4 0 0 1 -3.6 5.3 L7.5 20 a2.1 2.1 0 0 1 -3 -3 Z"/>
+    </svg>
+    <span>Settings</span>
+  </div>
+
+  <div id="btn-message" class="btn-baixo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--amarelo)" stroke-width="2" stroke-linejoin="round">
+      <path d="M3 4 H21 V16 H10 L5 20 V16 H3 Z"/>
+      <circle cx="8" cy="10" r="0.8" fill="var(--amarelo)"/>
+      <circle cx="12" cy="10" r="0.8" fill="var(--amarelo)"/>
+      <circle cx="16" cy="10" r="0.8" fill="var(--amarelo)"/>
+    </svg>
+    <span>Message</span>
+  </div>
+
+  <div id="btn-proximo" class="btn-baixo">
+    <svg width="24" height="22" viewBox="0 0 24 22" fill="none" stroke="var(--amarelo)" stroke-width="2" stroke-linejoin="round">
+      <path d="M3 2 L17 11 L3 20 Z"/>
+      <path d="M21 2 V20"/>
+    </svg>
+    <span>Próximo per.</span>
+  </div>
+
+  <div id="btn-before" class="btn-baixo">
+    <svg width="30" height="22" viewBox="0 0 30 22" fill="none" stroke="var(--amarelo)" stroke-width="2">
+      <circle cx="9" cy="13" r="7"/>
+      <circle cx="21" cy="13" r="7"/>
+      <path d="M9 3 V6 M21 3 V6 M9 13 V9 M21 13 L24 11"/>
+    </svg>
+    <span>Before match</span>
+  </div>
+
+  <div id="btn-match" class="btn-baixo">
+    <svg width="34" height="24" viewBox="0 0 34 24" fill="none" stroke="var(--amarelo)" stroke-width="2">
+      <path d="M5 1 V9 M1 5 H9"/>
+      <rect x="10" y="7" width="22" height="15"/>
+      <path d="M21 7 V22"/>
+      <circle cx="21" cy="14.5" r="3"/>
+      <path d="M10 11 H13 V18 H10 M32 11 H29 V18 H32"/>
+    </svg>
+    <span>New Match</span>
+  </div>
+
+  <!-- ===== FAIXA DO INTER-PERÍODO (no lugar dos botões de baixo) ===== -->
+  <div id="faixa-inter">Pressionar START para começar inter-período</div>
+
+  <!-- ===== TIME SCROLLER (abre ao carregar no tempo) ===== -->
+  <div id="fundo-tempo">
+    <div id="popup-tempo">
+      <div id="titulo-tempo">Time</div>
+      <div id="rodas">
+        <div id="roda-min" class="roda"></div>
+        <span id="dois-pontos">:</span>
+        <div id="roda-seg" class="roda"></div>
+      </div>
+      <div id="faixa-tempo"></div>
+      <div id="btn-cancelar" class="btn-popup">Cancel</div>
+      <div id="btn-ok" class="btn-popup">OK</div>
+    </div>
+  </div>
+
+  <!-- ===== MARCAÇÃO DE FALTAS (abre ao carregar na lista de jogadores) ===== -->
+  <div id="fundo-faltas">
+    <div id="titulo-faltas">Faltas</div>
+    <div id="grelha-faltas"></div>
+    <div id="btn-cancelar-faltas" class="btn-baixo">Cancelar</div>
+    <div id="btn-ok-faltas" class="btn-baixo">OK</div>
+  </div>
+
+  <!-- ===== SETTINGS (ecrã inteiro) ===== -->
+  <div id="ecra-settings" class="ecra-inteiro">
+    <div class="titulo-ecra">Settings</div>
+    <div id="lista-settings"></div>
+    <div id="btn-cancelar-settings" class="btn-baixo">Cancelar</div>
+    <div id="btn-save-settings" class="btn-baixo">Save</div>
+  </div>
+
+  <!-- ===== EDITAR EQUIPA: POPUP DO NOME (abre ao carregar no nome da equipa) ===== -->
+  <div id="fundo-nome" class="fundo-popup">
+    <div class="popup">
+      <div id="titulo-nome" class="titulo-popup">Editar equipa</div>
+      <input id="input-nome" type="text" maxlength="12" spellcheck="false">
+      <div id="btn-config-equipa" class="btn-popup">Config. equipa</div>
+      <div id="btn-cancelar-nome" class="btn-popup">Cancelar</div>
+      <div id="btn-ok-nome" class="btn-popup">OK</div>
+    </div>
+  </div>
+
+  <!-- ===== CONFIGURAR EQUIPAS (ecrã inteiro) ===== -->
+  <div id="ecra-config" class="ecra-inteiro">
+    <div class="titulo-ecra">Configurar equipas</div>
+    <div id="cfg-a" class="cfg-coluna">
+      <div class="cfg-letra">A -</div>
+      <div class="cfg-linha cfg-display">
+        <span class="cfg-rotulo">Display name</span>
+        <input id="cfg-nome-a" type="text" maxlength="12" spellcheck="false">
+      </div>
+      <div id="cfg-jogadores-a" class="cfg-linha cfg-jogadores">
+        <span class="cfg-rotulo">Players list</span>
+        <span id="cfg-n-jogadores-a"></span>
+        <svg id="cfg-cam-peq-a" width="46" height="40" viewBox="0 0 100 86"><path class="cam-corpo" d="M30 4 L8 14 L2 34 L18 38 L20 82 L80 82 L82 38 L98 34 L92 14 L70 4 C64 12 36 12 30 4 Z" stroke="var(--amarelo-borda)" stroke-width="2"/><text class="cam-letra" x="50" y="62" text-anchor="middle" font-family="Roboto, Arial" font-size="38" font-weight="700"></text></svg>
+      </div>
+      <div id="cfg-cores-a" class="cfg-linha cfg-cores">
+        <span class="cfg-rotulo">Select colours</span>
+        <svg id="cfg-cam-a" width="200" height="172" viewBox="0 0 100 86"><path class="cam-corpo" d="M30 4 L8 14 L2 34 L18 38 L20 82 L80 82 L82 38 L98 34 L92 14 L70 4 C64 12 36 12 30 4 Z" stroke="var(--amarelo-borda)" stroke-width="2"/><text class="cam-letra" x="50" y="62" text-anchor="middle" font-family="Roboto, Arial" font-size="38" font-weight="700">A</text></svg>
+      </div>
+    </div>
+    <div id="cfg-b" class="cfg-coluna">
+      <div class="cfg-letra">B -</div>
+      <div class="cfg-linha cfg-display">
+        <span class="cfg-rotulo">Display name</span>
+        <input id="cfg-nome-b" type="text" maxlength="12" spellcheck="false">
+      </div>
+      <div id="cfg-jogadores-b" class="cfg-linha cfg-jogadores">
+        <span class="cfg-rotulo">Players list</span>
+        <span id="cfg-n-jogadores-b"></span>
+        <svg id="cfg-cam-peq-b" width="46" height="40" viewBox="0 0 100 86"><path class="cam-corpo" d="M30 4 L8 14 L2 34 L18 38 L20 82 L80 82 L82 38 L98 34 L92 14 L70 4 C64 12 36 12 30 4 Z" stroke="var(--amarelo-borda)" stroke-width="2"/><text class="cam-letra" x="50" y="62" text-anchor="middle" font-family="Roboto, Arial" font-size="38" font-weight="700"></text></svg>
+      </div>
+      <div id="cfg-cores-b" class="cfg-linha cfg-cores">
+        <span class="cfg-rotulo">Select colours</span>
+        <svg id="cfg-cam-b" width="200" height="172" viewBox="0 0 100 86"><path class="cam-corpo" d="M30 4 L8 14 L2 34 L18 38 L20 82 L80 82 L82 38 L98 34 L92 14 L70 4 C64 12 36 12 30 4 Z" stroke="var(--amarelo-borda)" stroke-width="2"/><text class="cam-letra" x="50" y="62" text-anchor="middle" font-family="Roboto, Arial" font-size="38" font-weight="700">B</text></svg>
+      </div>
+    </div>
+    <div id="btn-cancelar-config" class="btn-baixo">Cancelar</div>
+    <div id="btn-save-config" class="btn-baixo">Save</div>
+  </div>
+
+  <!-- ===== LISTA DE JOGADORES (ecrã inteiro, aberto a partir da configuração) ===== -->
+  <div id="ecra-jogadores" class="ecra-inteiro">
+    <div id="titulo-jogadores" class="titulo-ecra">Jogadores</div>
+    <div id="grelha-jogadores"></div>
+    <div id="btn-cancelar-jogadores" class="btn-baixo">Cancelar</div>
+    <div id="btn-ok-jogadores" class="btn-baixo">OK</div>
+  </div>
+
+  <!-- ===== NÚMERO DO JOGADOR (scroller + lixo) ===== -->
+  <div id="fundo-numero" class="fundo-popup">
+    <div class="popup">
+      <div id="titulo-numero" class="titulo-popup">Jogador</div>
+      <div id="roda-num" class="roda"></div>
+      <div id="faixa-num"></div>
+      <div id="linha-nome-jogador"></div>
+      <div id="btn-lixo-jogador" class="btn-acerto"><svg width="34" height="40" viewBox="0 0 24 28" fill="none" stroke="var(--amarelo)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6 H22 M8 6 V3 H16 V6 M4 6 L5.5 26 H18.5 L20 6 M10 11 V21 M14 11 V21"/></svg></div>
+      <div id="btn-cancelar-numero" class="btn-popup">Cancelar</div>
+      <div id="btn-ok-numero" class="btn-popup">OK</div>
+    </div>
+  </div>
+
+  <!-- ===== CORES DA EQUIPA ===== -->
+  <div id="fundo-cores" class="fundo-popup">
+    <div id="popup-cores" class="popup">
+      <div id="titulo-cores" class="titulo-popup">Cores</div>
+      <svg id="cores-preview" width="180" height="155" viewBox="0 0 100 86"><path class="cam-corpo" d="M30 4 L8 14 L2 34 L18 38 L20 82 L80 82 L82 38 L98 34 L92 14 L70 4 C64 12 36 12 30 4 Z" stroke="var(--amarelo-borda)" stroke-width="2"/><text class="cam-letra" x="50" y="62" text-anchor="middle" font-family="Roboto, Arial" font-size="38" font-weight="700">A</text></svg>
+      <div id="rotulo-cor-camisola" class="cores-rotulo">Camisola</div>
+      <div id="opcoes-camisola" class="cores-opcoes"></div>
+      <div id="rotulo-cor-texto" class="cores-rotulo">Texto</div>
+      <div id="opcoes-texto" class="cores-opcoes"></div>
+      <div id="btn-cancelar-cores" class="btn-popup">Cancelar</div>
+      <div id="btn-ok-cores" class="btn-popup">OK</div>
+    </div>
+  </div>
+
+  <!-- ===== TIME-OUT (abre ao carregar no time-out de uma equipa) ===== -->
+  <div id="fundo-timeout">
+    <div id="popup-timeout">
+      <div id="titulo-timeout">Time-out</div>
+      <div id="acerto-timeout">
+        <div id="to-menos" class="btn-acerto">&minus;</div>
+        <div id="pintas-timeout">
+          <span class="pinta-to"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="2"><path d="M26 8 A12 12 0 1 0 26 22"/></svg></span>
+          <span class="pinta-to"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="2"><path d="M26 8 A12 12 0 1 0 26 22"/></svg></span>
+          <span class="pinta-to"><svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="2"><path d="M26 8 A12 12 0 1 0 26 22"/></svg></span>
+        </div>
+        <div id="to-mais" class="btn-acerto">+</div>
+      </div>
+      <div id="btn-start-timeout" class="btn-popup">&lt; START</div>
+      <div id="btn-corrigir-timeout" class="btn-popup">Correção &plusmn;</div>
+    </div>
+  </div>
+
+  <!-- ===== HISTÓRICO DE AÇÕES (abre com o botão <-) ===== -->
+  <div id="fundo-historico">
+    <div id="popup-historico">
+      <div id="titulo-historico">Últimas ações</div>
+      <div id="lista-historico"></div>
+      <div id="btn-cancelar-historico" class="btn-popup">Cancelar</div>
+    </div>
+  </div>
+
+  <!-- ===== ACERTO DE PONTOS (abre ao carregar no score) ===== -->
+  <div id="fundo-pontos">
+    <div id="popup-pontos">
+      <div id="titulo-pontos">Score</div>
+      <div id="acerto-pontos">
+        <div id="btn-menos" class="btn-acerto">&minus;</div>
+        <span id="valor-pontos">0</span>
+        <div id="btn-mais" class="btn-acerto">+</div>
+      </div>
+      <div id="btn-cancelar-pontos" class="btn-popup">Cancel</div>
+      <div id="btn-ok-pontos" class="btn-popup">OK</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== BOTÕES FÍSICOS DA CONSOLA (fora do ecrã) ===== -->
+<div id="painel-esq" class="painel-fisico">
+  <div id="btn-start" class="botao-fisico">START</div>
+  <div id="btn-stop" class="botao-fisico">STOP</div>
+</div>
+
+<div id="painel-dir" class="painel-fisico">
+  <div id="marca">BODET</div>
+  <div id="btn-voltar" class="botao-fisico">
+    <svg width="44" height="30" viewBox="0 0 44 30" fill="none" stroke="#222" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M40 15 H6 M16 4 L5 15 L16 26"/>
+    </svg>
+  </div>
+  <div id="btn-horn" class="botao-fisico">
+    <!-- buzina: caixinha à esquerda e corneta a abrir para a direita -->
+    <svg width="50" height="34" viewBox="0 0 50 34" fill="none" stroke="#222" stroke-width="4" stroke-linejoin="round">
+      <rect x="3" y="15" width="13" height="14" rx="2"/>
+      <path d="M16 15 L46 4 V29 H16"/>
+    </svg>
+  </div>
+</div>
+
+</div>
+
+<script>
+  // Escala a consola 1340x680 para caber na janela, mantendo a proporção
+  function ajustarEscala() {
+    const consola = document.getElementById('consola');
+    const escala = Math.min(window.innerWidth / 1340, window.innerHeight / 680);
+    consola.style.transform = 'translate(-50%, -50%) scale(' + escala + ')';
+  }
+  window.addEventListener('resize', ajustarEscala);
+  ajustarEscala();
+
+  // ===== PARÂMETROS GERAIS =====
+  // Mudam no Settings e só valem enquanto a página está aberta (ao sair voltam a estes valores).
+  const config = {
+    tempoAntes:     60 * 60,   // tempo antes do jogo (segundos)
+    tempoInter:      2 * 60,   // intervalo entre períodos (segundos)
+    tempoIntervalo: 10 * 60,   // intervalo grande, a meio do jogo (segundos)
+    tempoJogo:      10 * 60,   // duração de cada período (segundos)
+    periodos:       4,         // número de períodos
+    tempoTimeout:   60,        // duração de cada time-out (segundos)
+    faltasMax:      5          // faltas individuais (a última pinta é vermelha), máximo 6
+  };
+
+  // Cria as 12 linhas das listas de jogadores (os números são postos por mostrarNumerosLista)
+  const NUM_JOGADORES = 12;   // lugares por equipa (podem ficar vazios)
+
+  function criarLista(id) {
+    const lista = document.getElementById(id);
+    for (let i = 0; i < NUM_JOGADORES; i++) {
+      lista.innerHTML +=
+        '<div class="jogador">' +
+          '<span class="num"></span>' +
+          '<span class="faltas">' + '<span></span>'.repeat(config.faltasMax) + '</span>' +
+        '</div>';
+    }
+  }
+  criarLista('lista-a');
+  criarLista('lista-b');
+
+  // ===== TIME SCROLLER =====
+  const ALTURA_ITEM = 60;   // altura de cada número na roda (px)
+  const TEMPO_MAX   = 90;   // minutos máximos
+
+  const cronometro = document.getElementById('cronometro');
+  const fundoTempo = document.getElementById('fundo-tempo');
+  const rodaMin    = document.getElementById('roda-min');
+  const rodaSeg    = document.getElementById('roda-seg');
+
+  function doisDigitos(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  // Preenche uma roda de 0 até max, com um espaço em cima e em baixo
+  // para o primeiro e o último número poderem ficar na faixa do meio
+  function preencherRoda(roda, max) {
+    let html = '<div class="espaco"></div>';
+    for (let i = 0; i <= max; i++) {
+      html += '<div>' + doisDigitos(i) + '</div>';
+    }
+    html += '<div class="espaco"></div>';
+    roda.innerHTML = html;
+  }
+  preencherRoda(rodaMin, TEMPO_MAX);
+  preencherRoda(rodaSeg, 59);
+
+  // Valor que está na faixa do meio
+  function valorRoda(roda) {
+    return Math.round(roda.scrollTop / ALTURA_ITEM);
+  }
+
+  // Aos 90 minutos os segundos só podem ser 00
+  let esperaScroll;
+  function limitarTempoMax() {
+    clearTimeout(esperaScroll);
+    esperaScroll = setTimeout(function () {
+      if (valorRoda(rodaMin) === TEMPO_MAX && valorRoda(rodaSeg) !== 0) {
+        rodaSeg.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 150);
+  }
+  rodaMin.addEventListener('scroll', limitarTempoMax);
+  rodaSeg.addEventListener('scroll', limitarTempoMax);
+
+  // Arrastar as rodas com o rato (como no touchscreen).
+  // Clicar num número sem arrastar põe esse número na faixa do meio.
+  function arrastarRoda(roda) {
+    let inicioY = null;
+    let inicioScroll = 0;
+    let mexeu = false;
+
+    roda.addEventListener('mousedown', function (e) {
+      inicioY = e.clientY;
+      inicioScroll = roda.scrollTop;
+      mexeu = false;
+      roda.style.scrollSnapType = 'none';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', function (e) {
+      if (inicioY === null) return;
+      // o ecrã está escalado, por isso converte o movimento para px do ecrã
+      const escala = document.getElementById('ecra').getBoundingClientRect().width / 960;
+      const dy = (e.clientY - inicioY) / escala;
+      if (Math.abs(dy) > 4) mexeu = true;
+      roda.scrollTop = inicioScroll - dy;
+    });
+
+    window.addEventListener('mouseup', function (e) {
+      if (inicioY === null) return;
+      inicioY = null;
+      let alvo = valorRoda(roda);
+      if (!mexeu && roda.contains(e.target) && e.target.parentNode === roda && !e.target.classList.contains('espaco')) {
+        alvo = parseInt(e.target.textContent, 10);
+      }
+      roda.style.scrollSnapType = '';
+      roda.scrollTo({ top: alvo * ALTURA_ITEM, behavior: 'smooth' });
+    });
+  }
+  arrastarRoda(rodaMin);
+  arrastarRoda(rodaSeg);
+
+  // o scroller também é usado pelo Settings: aí o OK entrega o valor a destinoTempo
+  let destinoTempo = null;   // null = cronómetro do jogo
+
+  // Abre o scroller já posicionado num tempo (em segundos)
+  function abrirScroller(segundos, titulo, destino) {
+    destinoTempo = destino;
+    document.getElementById('titulo-tempo').textContent = titulo;
+    fundoTempo.classList.add('aberto');
+    rodaMin.scrollTop = Math.floor(segundos / 60) * ALTURA_ITEM;
+    rodaSeg.scrollTop = (segundos % 60) * ALTURA_ITEM;
+  }
+
+  // Carregar no tempo do jogo: abre o scroller no tempo atual
+  // (só deixa acertar o tempo com o cronómetro parado)
+  function abrirTempo() {
+    if (aCorrer) return;
+    abrirScroller(Math.ceil(decimas / 10), 'Time', null);
+  }
+
+  function fecharTempo() {
+    fundoTempo.classList.remove('aberto');
+  }
+
+  // OK: substitui o tempo do cronómetro pelo escolhido
+  function confirmarTempo() {
+    const min = valorRoda(rodaMin);
+    const seg = (min === TEMPO_MAX) ? 0 : valorRoda(rodaSeg);
+    if (destinoTempo) {
+      destinoTempo(min * 60 + seg);
+      fecharTempo();
+      return;
+    }
+    decimas = (min * 60 + seg) * 10;
+    mostrarTempo();
+    tempoReposto();
+    fecharTempo();
+  }
+
+  cronometro.addEventListener('click', abrirTempo);
+  document.getElementById('btn-ok').addEventListener('click', confirmarTempo);
+  document.getElementById('btn-cancelar').addEventListener('click', fecharTempo);
+
+  // ===== CRONÓMETRO (contagem decrescente) =====
+  const pontoVermelho = document.getElementById('ponto-vermelho');
+
+  let decimas    = config.tempoAntes * 10;  // tempo que falta, em décimas de segundo
+  let aCorrer    = false;
+  let fimMs      = 0;             // instante (Date.now) em que o tempo chega a 0
+  let intervalo  = null;
+
+  // Mostra MM:SS (de 1 em 1 segundo) ou, abaixo de 1 minuto, S.d (de 0.1 em 0.1)
+  function mostrarTempo() {
+    if (decimas >= 600) {
+      const segundos = Math.ceil(decimas / 10);
+      cronometro.textContent = doisDigitos(Math.floor(segundos / 60)) + ':' + doisDigitos(segundos % 60);
+    } else {
+      cronometro.textContent = Math.floor(decimas / 10) + '.' + (decimas % 10);
+    }
+  }
+
+  // Conta pelo relógio do PC, para não atrasar mesmo que o browser engasgue
+  function atualizarTempo() {
+    decimas = Math.max(0, Math.ceil((fimMs - Date.now()) / 100));
+    mostrarTempo();
+    if (decimas === 0) {
+      pararTempo();
+      tempoAcabou();
+    }
+  }
+
+  function iniciarTempo() {
+    if (interPeriodo === 'espera') comecarInterPeriodo();   // START com a faixa à espera -> 2:00 de intervalo
+    if (aCorrer || decimas === 0) return;
+    aCorrer = true;
+    fimMs = Date.now() + decimas * 100;
+    intervalo = setInterval(atualizarTempo, 50);
+    pontoVermelho.classList.add('a-correr');
+  }
+
+  function pararTempo() {
+    if (!aCorrer) return;
+    clearInterval(intervalo);
+    decimas = Math.max(0, Math.ceil((fimMs - Date.now()) / 100));
+    aCorrer = false;
+    pontoVermelho.classList.remove('a-correr');
+    mostrarTempo();
+  }
+
+  // Botões físicos: atuam ao carregar (como os reais) e descem enquanto estão premidos
+  function botaoFisico(botao, acao) {
+    function soltar() { botao.classList.remove('premido'); }
+    botao.addEventListener('mousedown', function () {
+      botao.classList.add('premido');
+      acao();
+    });
+    botao.addEventListener('mouseup', soltar);
+    botao.addEventListener('mouseleave', soltar);
+  }
+  botaoFisico(document.getElementById('btn-start'), iniciarTempo);
+  botaoFisico(document.getElementById('btn-stop'), pararTempo);
+  botaoFisico(document.getElementById('btn-voltar'), function () { abrirHistorico(); });
+
+  // ===== BUZINA (HORN) =====
+  // Toca enquanto o botão está premido, como a buzina real
+  let audio = null;
+  let somBuzina = null;
+
+  function ligarBuzina() {
+    if (somBuzina) return;
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    const volume = audio.createGain();
+    volume.gain.value = 0.15;
+    volume.connect(audio.destination);
+
+    // duas ondas quadradas ligeiramente desafinadas dão o som "rouco" da buzina de pavilhão
+    somBuzina = [370, 377].map(function (freq) {
+      const osc = audio.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      osc.connect(volume);
+      osc.start();
+      return osc;
+    });
+  }
+
+  function desligarBuzina() {
+    if (!somBuzina) return;
+    somBuzina.forEach(function (osc) { osc.stop(); });
+    somBuzina = null;
+  }
+
+  const btnHorn = document.getElementById('btn-horn');
+  botaoFisico(btnHorn, ligarBuzina);
+  btnHorn.addEventListener('mouseup', desligarBuzina);
+  btnHorn.addEventListener('mouseleave', desligarBuzina);
+
+  mostrarTempo();
+
+  // ===== PERÍODOS =====
+  // A sequência de fases é montada a partir do Settings:
+  // Before match, Período 1/N ... Período N/N, Fim do jogo,
+  // com o 'Intervalo' (grande) a meio quando o número de períodos é par.
+  let fases = [];
+  const faixaInter = document.getElementById('faixa-inter');
+  let interPeriodo = null;             // null | 'espera' (faixa à vista) | 'a decorrer'
+
+  const periodo = document.getElementById('periodo');
+  let fase = 0;
+
+  function construirFases() {
+    fases = [{ nome: 'Before match', tipo: 'antes' }];
+    for (let p = 1; p <= config.periodos; p++) {
+      fases.push({ nome: 'Período ' + p + '/' + config.periodos, tipo: 'periodo', num: p });
+      if (config.periodos % 2 === 0 && p === config.periodos / 2) {
+        fases.push({ nome: 'Intervalo', tipo: 'intervalo' });
+      }
+    }
+    fases.push({ nome: 'Fim do jogo', tipo: 'fim' });
+  }
+  construirFases();
+
+  function faseUltimo() { return fases.length - 2; }   // último período
+  function faseFim()    { return fases.length - 1; }
+
+  // tempo com que uma fase começa, em décimas
+  function tempoDaFase(f) {
+    return (fases[f].tipo === 'intervalo' ? config.tempoIntervalo : config.tempoJogo) * 10;
+  }
+
+  function mostrarFase() {
+    periodo.textContent = fases[fase].nome;
+  }
+
+  // Botão |> : passa à fase seguinte com o tempo dela parado no relógio
+  // (no último período já não avança: o fim do jogo chega quando o tempo acaba)
+  function proximoPeriodo() {
+    if (fase >= faseUltimo()) return;
+    pararTempo();
+    interPeriodo = null;
+    faixaInter.classList.remove('aberta');
+    fase++;
+    decimas = tempoDaFase(fase);
+    escreverFaltasEquipa('a', 0);   // faltas de equipa voltam a 0 em cada período
+    escreverFaltasEquipa('b', 0);
+    mostrarTempo();
+    mostrarFase();
+  }
+
+  // Tempo chegou a 0: no último período é o fim do jogo;
+  // nos outros períodos aparece a faixa do inter-período
+  function tempoAcabou() {
+    if (fase === faseUltimo()) {
+      fase = faseFim();
+      mostrarFase();
+      return;
+    }
+    if (interPeriodo === null && fases[fase].tipo === 'periodo') {
+      interPeriodo = 'espera';
+      faixaInter.classList.add('aberta');
+    }
+  }
+
+  // START com a faixa à vista: relógio com o tempo do inter-período, texto 'Intervalo' e a faixa desaparece.
+  // Se a seguir vem o intervalo grande, passa mesmo para essa fase (o |> seguinte leva ao período seguinte).
+  function comecarInterPeriodo() {
+    interPeriodo = 'a decorrer';
+    faixaInter.classList.remove('aberta');
+    if (fases[fase + 1].tipo === 'intervalo') {
+      fase++;
+      decimas = config.tempoIntervalo * 10;
+      escreverFaltasEquipa('a', 0);
+      escreverFaltasEquipa('b', 0);
+    } else {
+      decimas = config.tempoInter * 10;
+    }
+    mostrarTempo();
+    periodo.textContent = 'Intervalo';
+  }
+
+  // Tempo reposto no fim do jogo -> volta ao último período
+  // (e se o período acabou por engano e se repõe tempo, a faixa do inter-período sai)
+  function tempoReposto() {
+    if (interPeriodo === 'espera' && decimas > 0) {
+      interPeriodo = null;
+      faixaInter.classList.remove('aberta');
+    }
+    if (fase === faseFim() && decimas > 0) {
+      fase = faseUltimo();
+      mostrarFase();
+    }
+  }
+
+  document.getElementById('btn-proximo').addEventListener('click', proximoPeriodo);
+
+  // ===== FALTAS DOS JOGADORES =====
+
+  // número de cada lugar da lista (null = lugar vazio); muda na configuração das equipas
+  const jogadores = {
+    a: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    b: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  };
+
+  const fundoFaltas  = document.getElementById('fundo-faltas');
+  const tituloFaltas = document.getElementById('titulo-faltas');
+  const grelhaFaltas = document.getElementById('grelha-faltas');
+
+  // faltas de cada lugar da lista
+  const faltasJogadores = { a: [], b: [] };
+  for (let i = 0; i < NUM_JOGADORES; i++) {
+    faltasJogadores.a.push(0);
+    faltasJogadores.b.push(0);
+  }
+
+  let equipaFaltas = null;   // 'a' ou 'b'
+  let faltasAcerto = [];     // cópia que se mexe no ecrã de faltas (só passa no OK)
+
+  let ultimaFalta  = null;   // falta mais recente do jogo: { equipa, i } (só uma pisca)
+  let ultimaAcerto = null;   // linha onde se marcou a falta mais recente no ecrã de faltas
+
+  // Preenche as primeiras n pintas de um conjunto
+  function pintarPintas(pintas, n) {
+    for (let i = 0; i < pintas.children.length; i++) {
+      pintas.children[i].classList.toggle('cheia', i < n);
+    }
+  }
+
+  // Atualiza as pintas da lista do ecrã principal
+  function mostrarFaltasLista(equipa) {
+    const linhas = document.querySelectorAll('#lista-' + equipa + ' .jogador');
+    linhas.forEach(function (linha, i) {
+      pintarPintas(linha.querySelector('.faltas'), faltasJogadores[equipa][i]);
+    });
+  }
+
+  function abrirFaltas(equipa) {
+    equipaFaltas = equipa;
+    faltasAcerto = faltasJogadores[equipa].slice();
+
+    let html = '';
+    for (let i = 0; i < NUM_JOGADORES; i++) {
+      const n = jogadores[equipa][i];
+      html +=
+        '<div class="linha-falta ' + (equipa === 'a' ? 'verde' : 'azul') + (n === null ? ' vazia' : '') + '" data-i="' + i + '">' +
+          '<span class="num">' + (n === null ? '' : n) + '</span>' +
+          '<span class="pintas">' +
+            '<span class="pinta"></span>'.repeat(config.faltasMax - 1) +
+            '<span class="pinta vermelha"></span>' +
+          '</span>' +
+        '</div>';
+    }
+    grelhaFaltas.innerHTML = html;
+    grelhaFaltas.querySelectorAll('.linha-falta').forEach(function (linha, i) {
+      pintarPintas(linha.querySelector('.pintas'), faltasAcerto[i]);
+    });
+
+    tituloFaltas.textContent = 'Faltas ' + document.querySelector('#equipa-' + equipa + ' .nome-equipa').textContent;
+    ultimaAcerto = null;
+    fundoFaltas.classList.add('aberto');
+    atualizarPiscar();
+  }
+
+  function fecharFaltas() {
+    ultimaAcerto = null;
+    fundoFaltas.classList.remove('aberto');
+    atualizarPiscar();
+  }
+
+  // Põe a piscar a última pinta preenchida de um conjunto
+  function piscarPinta(pintas, n) {
+    if (n > 0) pintas.children[n - 1].classList.add('a-piscar');
+  }
+
+  // Garante que só a falta mais recente pisca (só no ecrã principal; no ecrã de faltas nada pisca)
+  function atualizarPiscar() {
+    document.querySelectorAll('.a-piscar').forEach(function (el) {
+      el.classList.remove('a-piscar');
+    });
+
+    if (ultimaFalta) {
+      const linha = document.querySelectorAll('#lista-' + ultimaFalta.equipa + ' .jogador')[ultimaFalta.i];
+      piscarPinta(linha.querySelector('.faltas'), faltasJogadores[ultimaFalta.equipa][ultimaFalta.i]);
+    }
+  }
+
+  // Carregar numa linha soma uma falta.
+  // Carregar numa pinta marca até essa pinta; se já era a última marcada, tira-a.
+  grelhaFaltas.addEventListener('click', function (e) {
+    const linha = e.target.closest('.linha-falta');
+    if (!linha) return;
+    const i = parseInt(linha.dataset.i, 10);
+    const pintas = linha.querySelector('.pintas');
+
+    const antes = faltasAcerto[i];
+    if (e.target.classList.contains('pinta')) {
+      const k = Array.prototype.indexOf.call(pintas.children, e.target) + 1;
+      faltasAcerto[i] = (faltasAcerto[i] === k) ? k - 1 : k;
+    } else {
+      faltasAcerto[i] = Math.min(config.faltasMax, faltasAcerto[i] + 1);
+    }
+    if (faltasAcerto[i] > antes) ultimaAcerto = i;   // falta nova -> passa a ser esta a piscar
+    pintarPintas(pintas, faltasAcerto[i]);
+    atualizarPiscar();
+  });
+
+  // OK: passa as faltas acertadas para o ecrã principal
+  function confirmarFaltas() {
+    // a diferença de faltas marcadas aos jogadores passa para o total da equipa
+    const soma = function (lista) { return lista.reduce(function (t, n) { return t + n; }, 0); };
+    const diferenca = soma(faltasAcerto) - soma(faltasJogadores[equipaFaltas]);
+    const equipaAntes = lerFaltasEquipa(equipaFaltas);
+    escreverFaltasEquipa(equipaFaltas, equipaAntes + diferenca);
+
+    // regista no histórico o que mudou em cada jogador
+    const equipa = equipaFaltas;
+    const deltas = faltasAcerto.map(function (n, i) { return n - faltasJogadores[equipa][i]; });
+    const deltaEquipa = lerFaltasEquipa(equipa) - equipaAntes;
+    const partes = [];
+    deltas.forEach(function (d, i) {
+      if (d !== 0) partes.push('nº' + jogadores[equipa][i] + ' ' + (d > 0 ? '+' : '') + d);
+    });
+    if (partes.length > 0) {
+      registarAcao('Falta ' + nomeEquipa(equipa) + ' ' + partes.join(', '), function () {
+        deltas.forEach(function (d, i) {
+          faltasJogadores[equipa][i] = Math.max(0, Math.min(config.faltasMax, faltasJogadores[equipa][i] - d));
+        });
+        escreverFaltasEquipa(equipa, lerFaltasEquipa(equipa) - deltaEquipa);
+        if (ultimaFalta && faltasJogadores[ultimaFalta.equipa][ultimaFalta.i] === 0) ultimaFalta = null;
+        mostrarFaltasLista(equipa);
+        atualizarPiscar();
+      });
+    }
+
+    faltasJogadores[equipaFaltas] = faltasAcerto.slice();
+    if (ultimaAcerto !== null) ultimaFalta = { equipa: equipaFaltas, i: ultimaAcerto };
+    // se a falta que piscava foi toda apagada, deixa de haver pinta a piscar
+    if (ultimaFalta && faltasJogadores[ultimaFalta.equipa][ultimaFalta.i] === 0) ultimaFalta = null;
+    mostrarFaltasLista(equipaFaltas);
+    fecharFaltas();
+  }
+
+  document.getElementById('lista-a').addEventListener('click', function () { abrirFaltas('a'); });
+  document.getElementById('lista-b').addEventListener('click', function () { abrirFaltas('b'); });
+  document.getElementById('btn-ok-faltas').addEventListener('click', confirmarFaltas);
+  document.getElementById('btn-cancelar-faltas').addEventListener('click', fecharFaltas);
+
+  // ===== PONTOS =====
+  const PONTOS_MAX = 200;   // pontuação máxima
+
+  const fundoPontos  = document.getElementById('fundo-pontos');
+  const tituloPontos = document.getElementById('titulo-pontos');
+  const valorPontos  = document.getElementById('valor-pontos');
+
+  let equipaPontos = null;  // 'a' ou 'b' (equipa que está a ser acertada)
+  let pontosAcerto = 0;     // valor mostrado no popup
+  let maxAcerto    = PONTOS_MAX;     // máximo do valor que está a ser acertado
+  let aoConfirmar  = null;           // o que o OK faz com o valor (pontos ou faltas de equipa)
+
+  function lerPontos(equipa) {
+    return parseInt(document.querySelector('#score-' + equipa + ' .pontuacao').textContent, 10);
+  }
+
+  function escreverPontos(equipa, valor) {
+    valor = Math.max(0, Math.min(PONTOS_MAX, valor));
+    document.querySelector('#score-' + equipa + ' .pontuacao').textContent = valor;
+  }
+
+  // Botões +1 / +2 / +3
+  function somarPontos(equipa, n) {
+    const antes = lerPontos(equipa);
+    escreverPontos(equipa, antes + n);
+    registarPontos(equipa, antes, nomeEquipa(equipa) + ' +' + n);
+  }
+
+  // Regista uma mudança de pontos (desfazer = tirar a diferença que foi feita)
+  function registarPontos(equipa, antes, texto) {
+    const delta = lerPontos(equipa) - antes;
+    if (delta === 0) return;
+    registarAcao(texto, function () {
+      escreverPontos(equipa, lerPontos(equipa) - delta);
+    });
+  }
+
+  ['a', 'b'].forEach(function (equipa) {
+    [1, 2, 3].forEach(function (n) {
+      document.getElementById('mais' + n + '-' + equipa).addEventListener('click', function () {
+        somarPontos(equipa, n);
+      });
+    });
+    document.getElementById('score-' + equipa).addEventListener('click', function () {
+      abrirPontos(equipa);
+    });
+  });
+
+  // Popup de acerto manual
+  function abrirPontos(equipa) {
+    equipaPontos = equipa;
+    pontosAcerto = lerPontos(equipa);
+    maxAcerto = PONTOS_MAX;
+    aoConfirmar = function (valor) {
+      const antes = lerPontos(equipa);
+      escreverPontos(equipa, valor);
+      registarPontos(equipa, antes, 'Score ' + nomeEquipa(equipa) + ' ' + antes + ' → ' + valor);
+    };
+    valorPontos.textContent = pontosAcerto;
+    tituloPontos.textContent = 'Score ' + document.querySelector('#equipa-' + equipa + ' .nome-equipa').textContent;
+    fundoPontos.classList.add('aberto');
+  }
+
+  function fecharPontos() {
+    fundoPontos.classList.remove('aberto');
+  }
+
+  function alterarAcerto(n) {
+    pontosAcerto = Math.max(0, Math.min(maxAcerto, pontosAcerto + n));
+    valorPontos.textContent = pontosAcerto;
+  }
+
+  // OK: substitui o valor da equipa (pontos ou faltas) pelo valor acertado
+  function confirmarPontos() {
+    aoConfirmar(pontosAcerto);
+    fecharPontos();
+  }
+
+  // Manter o + ou - carregado vai repetindo (para não ter de clicar 200 vezes)
+  function botaoRepetir(botao, n) {
+    let espera, repete;
+    function parar() {
+      clearTimeout(espera);
+      clearInterval(repete);
+    }
+    botao.addEventListener('mousedown', function () {
+      alterarAcerto(n);
+      espera = setTimeout(function () {
+        repete = setInterval(function () { alterarAcerto(n); }, 80);
+      }, 400);
+    });
+    botao.addEventListener('mouseup', parar);
+    botao.addEventListener('mouseleave', parar);
+  }
+  botaoRepetir(document.getElementById('btn-mais'), 1);
+  botaoRepetir(document.getElementById('btn-menos'), -1);
+
+  document.getElementById('btn-ok-pontos').addEventListener('click', confirmarPontos);
+  document.getElementById('btn-cancelar-pontos').addEventListener('click', fecharPontos);
+
+  // ===== FALTAS DE EQUIPA =====
+  const FALTAS_EQUIPA_MAX = 99;
+
+  function lerFaltasEquipa(equipa) {
+    return parseInt(document.querySelector('#faltas-' + equipa + ' .faltas-eq').textContent, 10);
+  }
+
+  function escreverFaltasEquipa(equipa, valor) {
+    valor = Math.max(0, Math.min(FALTAS_EQUIPA_MAX, valor));
+    document.querySelector('#faltas-' + equipa + ' .faltas-eq').textContent = valor;
+  }
+
+  // Carregar no Fouls abre o mesmo popup do score, com - e +.
+  // Acertar aqui só mexe no total da equipa, nunca nas faltas dos jogadores.
+  function abrirFaltasEquipa(equipa) {
+    equipaPontos = equipa;
+    pontosAcerto = lerFaltasEquipa(equipa);
+    maxAcerto = FALTAS_EQUIPA_MAX;
+    aoConfirmar = function (valor) {
+      const antes = lerFaltasEquipa(equipa);
+      escreverFaltasEquipa(equipa, valor);
+      const delta = lerFaltasEquipa(equipa) - antes;
+      if (delta === 0) return;
+      registarAcao('Fouls ' + nomeEquipa(equipa) + ' ' + antes + ' → ' + valor, function () {
+        escreverFaltasEquipa(equipa, lerFaltasEquipa(equipa) - delta);
+      });
+    };
+    valorPontos.textContent = pontosAcerto;
+    tituloPontos.textContent = 'Fouls ' + document.querySelector('#equipa-' + equipa + ' .nome-equipa').textContent;
+    fundoPontos.classList.add('aberto');
+  }
+
+  document.getElementById('faltas-a').addEventListener('click', function () { abrirFaltasEquipa('a'); });
+  document.getElementById('faltas-b').addEventListener('click', function () { abrirFaltasEquipa('b'); });
+
+  // ===== TIME-OUTS =====
+  const TIMEOUTS_MAX  = 3;    // time-outs por equipa
+
+  const fundoTimeout   = document.getElementById('fundo-timeout');
+  const popupTimeout   = document.getElementById('popup-timeout');
+  const tituloTimeout  = document.getElementById('titulo-timeout');
+  const pintasTimeout  = document.getElementById('pintas-timeout');
+  const btnStartTO     = document.getElementById('btn-start-timeout');
+
+  // usados conta também o time-out que está a decorrer
+  const timeouts = {
+    a: { usados: 0, aCorrer: false, fimMs: 0, intervalo: null },
+    b: { usados: 0, aCorrer: false, fimMs: 0, intervalo: null }
+  };
+  let equipaTimeout = null;   // equipa do popup aberto
+
+  // Pinta as 3 pintas: usadas sólidas, a do time-out a decorrer a piscar
+  function pintarTimeouts(pintas, equipa) {
+    const t = timeouts[equipa];
+    for (let i = 0; i < TIMEOUTS_MAX; i++) {
+      const aDecorrer = t.aCorrer && i === t.usados - 1;
+      pintas.children[i].classList.toggle('a-usar', aDecorrer);
+      pintas.children[i].classList.toggle('cheia', i < t.usados && !aDecorrer);
+    }
+  }
+
+  function mostrarTimeouts(equipa) {
+    pintarTimeouts(document.querySelector('#timeout-' + equipa + ' .bolas-to'), equipa);
+    if (fundoTimeout.classList.contains('aberto') && equipaTimeout === equipa) {
+      pintarTimeouts(pintasTimeout, equipa);
+      const t = timeouts[equipa];
+      btnStartTO.classList.toggle('desligado', t.aCorrer || t.usados >= TIMEOUTS_MAX);
+    }
+  }
+
+  // Contador ao lado do período, sem décimas (M:SS)
+  function mostrarContadorTO(equipa) {
+    const t = timeouts[equipa];
+    const contador = document.getElementById('to-contador-' + equipa);
+    if (!t.aCorrer) {
+      contador.textContent = '';
+      return;
+    }
+    const segundos = Math.max(0, Math.ceil((t.fimMs - Date.now()) / 1000));
+    contador.textContent = Math.floor(segundos / 60) + ':' + doisDigitos(segundos % 60);
+    if (segundos === 0) acabarTimeout(equipa);
+  }
+
+  function iniciarTimeout(equipa) {
+    const t = timeouts[equipa];
+    if (t.aCorrer || t.usados >= TIMEOUTS_MAX) return;
+    t.usados++;
+    t.aCorrer = true;
+    t.fimMs = Date.now() + config.tempoTimeout * 1000;
+    t.intervalo = setInterval(function () { mostrarContadorTO(equipa); }, 100);
+    mostrarContadorTO(equipa);
+    mostrarTimeouts(equipa);
+
+    registarAcao('Time-out ' + nomeEquipa(equipa), function () {
+      if (t.aCorrer) pararTimeout(equipa);
+      t.usados = Math.max(0, t.usados - 1);
+      mostrarTimeouts(equipa);
+    });
+  }
+
+  // Para o contador (a pinta fica como usada)
+  function pararTimeout(equipa) {
+    const t = timeouts[equipa];
+    clearInterval(t.intervalo);
+    t.aCorrer = false;
+    mostrarContadorTO(equipa);
+    mostrarTimeouts(equipa);
+  }
+
+  // Fim dos 60 s: a pinta fica sólida e o contador desaparece
+  function acabarTimeout(equipa) {
+    pararTimeout(equipa);
+  }
+
+  function abrirTimeout(equipa) {
+    equipaTimeout = equipa;
+    tituloTimeout.textContent = 'Time-out ' + nomeEquipa(equipa);
+    popupTimeout.classList.remove('a-corrigir');
+    fundoTimeout.classList.add('aberto');
+    mostrarTimeouts(equipa);
+  }
+
+  function fecharTimeout() {
+    fundoTimeout.classList.remove('aberto');
+  }
+
+  // < START: arranca o time-out e fecha o popup
+  btnStartTO.addEventListener('click', function () {
+    const t = timeouts[equipaTimeout];
+    if (t.aCorrer || t.usados >= TIMEOUTS_MAX) return;
+    iniciarTimeout(equipaTimeout);
+    fecharTimeout();
+  });
+
+  // Correção: mostra o - e o + para acertar os time-outs usados
+  document.getElementById('btn-corrigir-timeout').addEventListener('click', function () {
+    popupTimeout.classList.toggle('a-corrigir');
+  });
+
+  function corrigirTimeouts(n) {
+    const t = timeouts[equipaTimeout];
+    const novo = Math.max(0, Math.min(TIMEOUTS_MAX, t.usados + n));
+    if (novo === t.usados) return;
+    if (t.aCorrer) pararTimeout(equipaTimeout);   // corrigir cancela o contador a decorrer
+    const antes = t.usados;
+    t.usados = novo;
+    mostrarTimeouts(equipaTimeout);
+
+    const equipa = equipaTimeout;
+    registarAcao('Time-out ' + nomeEquipa(equipa) + ' ' + antes + ' → ' + novo, function () {
+      timeouts[equipa].usados = Math.max(0, Math.min(TIMEOUTS_MAX, timeouts[equipa].usados - (novo - antes)));
+      mostrarTimeouts(equipa);
+    });
+  }
+  document.getElementById('to-menos').addEventListener('click', function () { corrigirTimeouts(-1); });
+  document.getElementById('to-mais').addEventListener('click', function () { corrigirTimeouts(1); });
+
+  // Carregar fora do popup fecha-o
+  fundoTimeout.addEventListener('click', function (e) {
+    if (e.target === fundoTimeout) fecharTimeout();
+  });
+
+  document.getElementById('timeout-a').addEventListener('click', function () { abrirTimeout('a'); });
+  document.getElementById('timeout-b').addEventListener('click', function () { abrirTimeout('b'); });
+
+  // ===== HISTÓRICO DE AÇÕES (botão <-) =====
+  const ACOES_VISIVEIS = 3;   // quantas ações aparecem no popup
+
+  const fundoHistorico = document.getElementById('fundo-historico');
+  const listaHistorico = document.getElementById('lista-historico');
+
+  // cada ação: { texto, equipa, desfazer } (a mais recente fica no fim)
+  const historico = [];
+
+  function nomeEquipa(equipa) {
+    return document.querySelector('#equipa-' + equipa + ' .nome-equipa').textContent;
+  }
+
+  function registarAcao(texto, desfazer) {
+    historico.push({ texto: texto, desfazer: desfazer });
+  }
+
+  // Mostra as últimas 3 ações, a mais recente em cima
+  function mostrarHistorico() {
+    const ultimas = historico.slice(-ACOES_VISIVEIS).reverse();
+    if (ultimas.length === 0) {
+      listaHistorico.innerHTML = '<div id="sem-acoes">Sem ações</div>';
+      return;
+    }
+    let html = '';
+    ultimas.forEach(function (acao, k) {
+      html +=
+        '<div class="acao" data-k="' + k + '">' +
+          '<span class="texto">' + acao.texto + '</span>' +
+          '<span class="lixo">' +
+            '<svg width="24" height="28" viewBox="0 0 24 28" fill="none" stroke="var(--amarelo)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+              '<path d="M2 6 H22 M8 6 V3 H16 V6 M4 6 L5.5 26 H18.5 L20 6 M10 11 V21 M14 11 V21"/>' +
+            '</svg>' +
+          '</span>' +
+        '</div>';
+    });
+    listaHistorico.innerHTML = html;
+  }
+
+  function abrirHistorico() {
+    mostrarHistorico();
+    fundoHistorico.classList.add('aberto');
+  }
+
+  function fecharHistorico() {
+    fundoHistorico.classList.remove('aberto');
+  }
+
+  // Lixo: desfaz essa ação e tira-a da lista (o popup fica aberto)
+  listaHistorico.addEventListener('click', function (e) {
+    const lixo = e.target.closest('.lixo');
+    if (!lixo) return;
+    const k = parseInt(lixo.parentNode.dataset.k, 10);
+    const indice = historico.length - 1 - k;
+    historico[indice].desfazer();
+    historico.splice(indice, 1);
+    mostrarHistorico();
+  });
+
+  // Carregar fora do popup fecha-o
+  fundoHistorico.addEventListener('click', function (e) {
+    if (e.target === fundoHistorico) fecharHistorico();
+  });
+  document.getElementById('btn-cancelar-historico').addEventListener('click', fecharHistorico);
+
+  // ===== SETTINGS (parâmetros gerais) =====
+  const PARAMETROS = [
+    { chave: 'tempoAntes',     nome: 'Tempo antes do jogo',               tipo: 'tempo' },
+    { chave: 'tempoInter',     nome: 'Tempo de intervalo entre períodos', tipo: 'tempo' },
+    { chave: 'tempoIntervalo', nome: 'Tempo de intervalo',                tipo: 'tempo' },
+    { chave: 'tempoJogo',      nome: 'Tempo de jogo',                     tipo: 'tempo' },
+    { chave: 'periodos',       nome: 'Número de períodos',                tipo: 'numero', min: 1, max: 8 },
+    { chave: 'tempoTimeout',   nome: 'Duração de time-out',               tipo: 'tempo' },
+    { chave: 'faltasMax',      nome: 'Número de faltas individuais',      tipo: 'numero', min: 1, max: 6 }
+  ];
+
+  const ecraSettings  = document.getElementById('ecra-settings');
+  const listaSettings = document.getElementById('lista-settings');
+  let configEdit = null;   // cópia que se mexe no ecrã (só passa no Save)
+
+  function textoTempo(segundos) {
+    return Math.floor(segundos / 60) + ':' + doisDigitos(segundos % 60);
+  }
+
+  function mostrarSettings() {
+    let html = '';
+    PARAMETROS.forEach(function (par, k) {
+      const v = configEdit[par.chave];
+      if (par.tipo === 'tempo') {
+        html +=
+          '<div class="linha-setting tempo" data-k="' + k + '">' +
+            '<span class="nome-setting">' + par.nome + '</span>' +
+            '<span class="valor-setting">' + textoTempo(v) + '</span>' +
+          '</div>';
+      } else {
+        html +=
+          '<div class="linha-setting" data-k="' + k + '">' +
+            '<span class="nome-setting">' + par.nome + '</span>' +
+            '<span class="btn-acerto menos">&minus;</span>' +
+            '<span class="valor-setting">' + v + '</span>' +
+            '<span class="btn-acerto mais">+</span>' +
+          '</div>';
+      }
+    });
+    listaSettings.innerHTML = html;
+  }
+
+  function abrirSettings() {
+    configEdit = Object.assign({}, config);
+    mostrarSettings();
+    ecraSettings.classList.add('aberto');
+  }
+
+  function fecharSettings() {
+    ecraSettings.classList.remove('aberto');
+  }
+
+  // Tempos abrem o scroller; números mexem com - e +
+  listaSettings.addEventListener('click', function (e) {
+    const linha = e.target.closest('.linha-setting');
+    if (!linha) return;
+    const par = PARAMETROS[parseInt(linha.dataset.k, 10)];
+
+    if (par.tipo === 'tempo') {
+      abrirScroller(configEdit[par.chave], par.nome, function (segundos) {
+        configEdit[par.chave] = Math.max(1, segundos);   // nunca 0:00
+        mostrarSettings();
+      });
+      return;
+    }
+    let n = configEdit[par.chave];
+    if (e.target.classList.contains('menos')) n--;
+    if (e.target.classList.contains('mais')) n++;
+    configEdit[par.chave] = Math.max(par.min, Math.min(par.max, n));
+    mostrarSettings();
+  });
+
+  // Save: aplica os parâmetros ao jogo que está a decorrer
+  function guardarSettings() {
+    const faseAntes = fases[fase];
+    const faltasAntes = config.faltasMax;
+    Object.assign(config, configEdit);
+
+    // --- períodos: reconstrói a sequência e procura a fase equivalente ---
+    construirFases();
+    if (faseAntes.tipo === 'antes') {
+      fase = 0;
+    } else if (faseAntes.tipo === 'fim') {
+      fase = faseFim();
+    } else if (faseAntes.tipo === 'intervalo') {
+      fase = fases.findIndex(function (f) { return f.tipo === 'intervalo'; });
+      if (fase === -1) fase = fases.findIndex(function (f) { return f.num === Math.max(1, Math.floor(config.periodos / 2)); });
+    } else {
+      const p = Math.min(faseAntes.num, config.periodos);
+      fase = fases.findIndex(function (f) { return f.tipo === 'periodo' && f.num === p; });
+    }
+    // a faixa à espera no que passou a ser o último período -> é o fim do jogo
+    if (interPeriodo === 'espera' && fase === faseUltimo()) {
+      interPeriodo = null;
+      faixaInter.classList.remove('aberta');
+      fase = faseFim();
+    }
+    if (interPeriodo === 'a decorrer') periodo.textContent = 'Intervalo';
+    else mostrarFase();
+
+    // --- antes do jogo, com o relógio parado, o relógio passa para o novo tempo ---
+    if (fase === 0 && !aCorrer) {
+      decimas = config.tempoAntes * 10;
+      mostrarTempo();
+    }
+
+    // --- faltas individuais: refaz as pintas e corta o que passar do novo máximo ---
+    if (config.faltasMax !== faltasAntes) {
+      ['a', 'b'].forEach(function (eq) {
+        document.querySelectorAll('#lista-' + eq + ' .jogador .faltas').forEach(function (pintas) {
+          pintas.innerHTML = '<span></span>'.repeat(config.faltasMax);
+        });
+        faltasJogadores[eq] = faltasJogadores[eq].map(function (n) { return Math.min(n, config.faltasMax); });
+        mostrarFaltasLista(eq);
+      });
+      atualizarPiscar();
+    }
+
+    fecharSettings();
+  }
+
+  document.getElementById('btn-settings').addEventListener('click', abrirSettings);
+  document.getElementById('btn-cancelar-settings').addEventListener('click', fecharSettings);
+  document.getElementById('btn-save-settings').addEventListener('click', guardarSettings);
+
+  // ===== EDITAR EQUIPAS (nome, jogadores e cores) =====
+  const CORES_CAMISOLA = ['#138a1c', '#0b0b8f', '#c41e1e', '#f2f2f2', '#111111'];   // verde, azul, vermelho, branco, preto
+  const CORES_TEXTO    = ['#ffffff', '#000000', '#f7c932', '#e02020', '#4fc3f7'];   // branco, preto, amarelo, vermelho, azul claro
+
+  // cores atuais de cada equipa
+  const coresEquipa = {
+    a: { cor: '#138a1c', texto: '#ffffff' },
+    b: { cor: '#0b0b8f', texto: '#ffffff' }
+  };
+
+  // Escreve os números nas listas do ecrã principal (lugares vazios ficam em branco)
+  function mostrarNumerosLista(equipa) {
+    const linhas = document.querySelectorAll('#lista-' + equipa + ' .jogador');
+    linhas.forEach(function (linha, i) {
+      const n = jogadores[equipa][i];
+      linha.querySelector('.num').textContent = (n === null) ? '' : n;
+      linha.classList.toggle('vazia', n === null);
+    });
+  }
+  mostrarNumerosLista('a');
+  mostrarNumerosLista('b');
+
+  function aplicarCores(equipa) {
+    document.documentElement.style.setProperty('--cor-' + equipa, coresEquipa[equipa].cor);
+    document.documentElement.style.setProperty('--texto-' + equipa, coresEquipa[equipa].texto);
+  }
+
+  // Pinta uma camisola desenhada (corpo e letra)
+  function pintarCamisola(svg, cor, texto) {
+    svg.querySelector('.cam-corpo').setAttribute('fill', cor);
+    svg.querySelector('.cam-letra').setAttribute('fill', texto);
+  }
+
+  // --- Popup do nome ---
+  const fundoNome = document.getElementById('fundo-nome');
+  const inputNome = document.getElementById('input-nome');
+  let equipaNome  = null;
+
+  function abrirNomeEquipa(equipa) {
+    equipaNome = equipa;
+    inputNome.value = nomeEquipa(equipa);
+    fundoNome.classList.add('aberto');
+    inputNome.focus();
+    inputNome.select();
+  }
+
+  function fecharNomeEquipa() {
+    fundoNome.classList.remove('aberto');
+    inputNome.blur();
+  }
+
+  function escreverNomeEquipa(equipa, nome) {
+    nome = nome.trim();
+    if (nome !== '') document.querySelector('#equipa-' + equipa + ' .nome-equipa').textContent = nome;
+  }
+
+  // OK: muda só o nome
+  function confirmarNomeEquipa() {
+    escreverNomeEquipa(equipaNome, inputNome.value);
+    fecharNomeEquipa();
+  }
+
+  inputNome.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') confirmarNomeEquipa();
+    if (e.key === 'Escape') fecharNomeEquipa();
+  });
+  fundoNome.addEventListener('click', function (e) {
+    if (e.target === fundoNome) fecharNomeEquipa();
+  });
+  document.getElementById('btn-ok-nome').addEventListener('click', confirmarNomeEquipa);
+  document.getElementById('btn-cancelar-nome').addEventListener('click', fecharNomeEquipa);
+  document.getElementById('btn-config-equipa').addEventListener('click', function () {
+    const nome = inputNome.value.trim() || nomeEquipa(equipaNome);
+    fecharNomeEquipa();
+    abrirConfig(equipaNome, nome);
+  });
+  document.getElementById('equipa-a').addEventListener('click', function () { abrirNomeEquipa('a'); });
+  document.getElementById('equipa-b').addEventListener('click', function () { abrirNomeEquipa('b'); });
+
+  // --- Configurar equipas (tudo o que se mexe aqui só passa no Save) ---
+  const ecraConfig = document.getElementById('ecra-config');
+  let cfg = null;   // cópia de trabalho: { a: { nome, jogadores, cor, texto }, b: {...} }
+
+  function abrirConfig(equipa, nome) {
+    cfg = {};
+    ['a', 'b'].forEach(function (eq) {
+      cfg[eq] = {
+        nome: nomeEquipa(eq),
+        jogadores: jogadores[eq].slice(),
+        cor: coresEquipa[eq].cor,
+        texto: coresEquipa[eq].texto
+      };
+    });
+    cfg[equipa].nome = nome;   // o nome escolhido no popup antes de entrar
+    ['a', 'b'].forEach(mostrarConfig);
+    ecraConfig.classList.add('aberto');
+  }
+
+  function mostrarConfig(eq) {
+    document.getElementById('cfg-nome-' + eq).value = cfg[eq].nome;
+    const total = cfg[eq].jogadores.filter(function (n) { return n !== null; }).length;
+    document.getElementById('cfg-n-jogadores-' + eq).textContent = total + ' / ' + NUM_JOGADORES + ' jogadores';
+    pintarCamisola(document.getElementById('cfg-cam-' + eq), cfg[eq].cor, cfg[eq].texto);
+    pintarCamisola(document.getElementById('cfg-cam-peq-' + eq), cfg[eq].cor, cfg[eq].texto);
+  }
+
+  function fecharConfig() {
+    ecraConfig.classList.remove('aberto');
+    cfg = null;
+  }
+
+  // Save: passa nomes, jogadores e cores para o jogo
+  function guardarConfig() {
+    ['a', 'b'].forEach(function (eq) {
+      escreverNomeEquipa(eq, document.getElementById('cfg-nome-' + eq).value);
+
+      // lugar que mudou de jogador (ou ficou vazio) perde as faltas que tinha
+      for (let i = 0; i < NUM_JOGADORES; i++) {
+        if (cfg[eq].jogadores[i] !== jogadores[eq][i]) {
+          jogadores[eq][i] = cfg[eq].jogadores[i];
+          faltasJogadores[eq][i] = 0;
+        }
+      }
+      mostrarNumerosLista(eq);
+      mostrarFaltasLista(eq);
+
+      coresEquipa[eq].cor = cfg[eq].cor;
+      coresEquipa[eq].texto = cfg[eq].texto;
+      aplicarCores(eq);
+    });
+    if (ultimaFalta && faltasJogadores[ultimaFalta.equipa][ultimaFalta.i] === 0) ultimaFalta = null;
+    atualizarPiscar();
+    fecharConfig();
+  }
+
+  // o display name vai sendo guardado na cópia de trabalho enquanto se escreve
+  ['a', 'b'].forEach(function (eq) {
+    document.getElementById('cfg-nome-' + eq).addEventListener('input', function (e) {
+      cfg[eq].nome = e.target.value;
+    });
+  });
+
+  document.getElementById('btn-cancelar-config').addEventListener('click', fecharConfig);
+  document.getElementById('btn-save-config').addEventListener('click', guardarConfig);
+
+  // --- Lista de jogadores (por cima da configuração) ---
+  const ecraJogadores   = document.getElementById('ecra-jogadores');
+  const grelhaJogadores = document.getElementById('grelha-jogadores');
+  let equipaJogadores = null;
+  let jogEdit = [];   // cópia que se mexe neste ecrã (só passa no OK)
+
+  function abrirJogadores(eq) {
+    equipaJogadores = eq;
+    jogEdit = cfg[eq].jogadores.slice();
+    document.getElementById('cfg-nome-' + eq).blur();
+    document.getElementById('titulo-jogadores').textContent =
+      'Jogadores ' + (document.getElementById('cfg-nome-' + eq).value.trim() || cfg[eq].nome);
+    mostrarJogadores();
+    ecraJogadores.classList.add('aberto');
+  }
+
+  function mostrarJogadores() {
+    let html = '';
+    for (let i = 0; i < NUM_JOGADORES; i++) {
+      const n = jogEdit[i];
+      html +=
+        '<div class="linha-jogador" data-i="' + i + '" style="background:' + cfg[equipaJogadores].cor +
+          ';color:' + cfg[equipaJogadores].texto + '">' +
+          (n === null ? '<span class="vazio">vazio</span>' : n) +
+        '</div>';
+    }
+    grelhaJogadores.innerHTML = html;
+  }
+
+  function fecharJogadores() {
+    ecraJogadores.classList.remove('aberto');
+  }
+
+  grelhaJogadores.addEventListener('click', function (e) {
+    const linha = e.target.closest('.linha-jogador');
+    if (linha) abrirNumero(parseInt(linha.dataset.i, 10));
+  });
+  document.getElementById('btn-cancelar-jogadores').addEventListener('click', fecharJogadores);
+  document.getElementById('btn-ok-jogadores').addEventListener('click', function () {
+    cfg[equipaJogadores].jogadores = jogEdit.slice();
+    mostrarConfig(equipaJogadores);
+    fecharJogadores();
+  });
+  document.getElementById('cfg-jogadores-a').addEventListener('click', function () { abrirJogadores('a'); });
+  document.getElementById('cfg-jogadores-b').addEventListener('click', function () { abrirJogadores('b'); });
+
+  // --- Número do jogador: scroller (0 a 99) + lixo ---
+  const NUMERO_MAX = 99;
+  const fundoNumero  = document.getElementById('fundo-numero');
+  const tituloNumero = document.getElementById('titulo-numero');
+  const rodaNum      = document.getElementById('roda-num');
+  let lugarNumero = null;
+
+  // a roda dos números de camisola mostra 0, 1, 2... (sem o zero à esquerda do tempo)
+  (function () {
+    let html = '<div class="espaco"></div>';
+    for (let n = 0; n <= NUMERO_MAX; n++) html += '<div>' + n + '</div>';
+    html += '<div class="espaco"></div>';
+    rodaNum.innerHTML = html;
+  })();
+  arrastarRoda(rodaNum);
+
+  // primeiro número livre (a partir do 4, como nas listas)
+  function numeroLivre() {
+    for (let k = 0; k <= NUMERO_MAX; k++) {
+      const n = (k + 4) % (NUMERO_MAX + 1);
+      if (jogEdit.indexOf(n) === -1) return n;
+    }
+    return 0;
+  }
+
+  function abrirNumero(i) {
+    lugarNumero = i;
+    tituloNumero.textContent = 'Jogador';
+    tituloNumero.classList.remove('erro');
+    fundoNumero.classList.add('aberto');
+    const n = (jogEdit[i] === null) ? numeroLivre() : jogEdit[i];
+    rodaNum.scrollTop = n * ALTURA_ITEM;
+  }
+
+  function fecharNumero() {
+    fundoNumero.classList.remove('aberto');
+  }
+
+  // OK: não deixa repetir números na mesma equipa
+  function confirmarNumero() {
+    const n = valorRoda(rodaNum);
+    const repetido = jogEdit.some(function (x, j) { return j !== lugarNumero && x === n; });
+    if (repetido) {
+      tituloNumero.textContent = 'Nº ' + n + ' já existe';
+      tituloNumero.classList.add('erro');
+      return;
+    }
+    jogEdit[lugarNumero] = n;
+    mostrarJogadores();
+    fecharNumero();
+  }
+
+  // Lixo: tira o jogador desse lugar
+  document.getElementById('btn-lixo-jogador').addEventListener('click', function () {
+    jogEdit[lugarNumero] = null;
+    mostrarJogadores();
+    fecharNumero();
+  });
+  rodaNum.addEventListener('scroll', function () {
+    tituloNumero.textContent = 'Jogador';
+    tituloNumero.classList.remove('erro');
+  });
+  document.getElementById('btn-ok-numero').addEventListener('click', confirmarNumero);
+  document.getElementById('btn-cancelar-numero').addEventListener('click', fecharNumero);
+
+  // --- Cores da equipa ---
+  const fundoCores    = document.getElementById('fundo-cores');
+  const opcoesCamisola = document.getElementById('opcoes-camisola');
+  const opcoesTexto    = document.getElementById('opcoes-texto');
+  const coresPreview   = document.getElementById('cores-preview');
+  let equipaCores = null;
+  let corEdit = null;
+  let textoEdit = null;
+
+  function criarOpcoes(caixa, cores) {
+    caixa.innerHTML = cores.map(function (c) {
+      return '<div class="opcao-cor" data-cor="' + c + '" style="background:' + c + '"></div>';
+    }).join('');
+  }
+  criarOpcoes(opcoesCamisola, CORES_CAMISOLA);
+  criarOpcoes(opcoesTexto, CORES_TEXTO);
+
+  function mostrarCores() {
+    pintarCamisola(coresPreview, corEdit, textoEdit);
+    opcoesCamisola.querySelectorAll('.opcao-cor').forEach(function (o) {
+      o.classList.toggle('escolhida', o.dataset.cor === corEdit);
+    });
+    opcoesTexto.querySelectorAll('.opcao-cor').forEach(function (o) {
+      o.classList.toggle('escolhida', o.dataset.cor === textoEdit);
+    });
+  }
+
+  function abrirCores(eq) {
+    equipaCores = eq;
+    corEdit = cfg[eq].cor;
+    textoEdit = cfg[eq].texto;
+    document.getElementById('cfg-nome-' + eq).blur();
+    document.getElementById('titulo-cores').textContent =
+      'Cores ' + (document.getElementById('cfg-nome-' + eq).value.trim() || cfg[eq].nome);
+    coresPreview.querySelector('.cam-letra').textContent = eq.toUpperCase();
+    mostrarCores();
+    fundoCores.classList.add('aberto');
+  }
+
+  function fecharCores() {
+    fundoCores.classList.remove('aberto');
+  }
+
+  opcoesCamisola.addEventListener('click', function (e) {
+    if (!e.target.dataset.cor) return;
+    corEdit = e.target.dataset.cor;
+    mostrarCores();
+  });
+  opcoesTexto.addEventListener('click', function (e) {
+    if (!e.target.dataset.cor) return;
+    textoEdit = e.target.dataset.cor;
+    mostrarCores();
+  });
+  document.getElementById('btn-ok-cores').addEventListener('click', function () {
+    cfg[equipaCores].cor = corEdit;
+    cfg[equipaCores].texto = textoEdit;
+    mostrarConfig(equipaCores);
+    fecharCores();
+  });
+  document.getElementById('btn-cancelar-cores').addEventListener('click', fecharCores);
+  document.getElementById('cfg-cores-a').addEventListener('click', function () { abrirCores('a'); });
+  document.getElementById('cfg-cores-b').addEventListener('click', function () { abrirCores('b'); });
+</script>
+
+</body>
+</html>

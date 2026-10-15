@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bodet Power On</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --amarelo: #f7c932;
+    --amarelo-borda: #e8b923;
+    --preto: #000;
+    --branco: #fff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #222;
+    font-family: 'Roboto', Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* Consola (caixa da mesa) com tamanho fixo 1340x680, escalada para caber na janela */
+  #consola {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 1340px; height: 680px;
+    background: linear-gradient(#3a3a3a, #1c1c1c);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.12);
+    transform-origin: center center;
+    user-select: none;
+  }
+
+  /* Ecrã tátil 960x600 dentro da consola (desligado: tudo preto) */
+  #ecra {
+    position: absolute;
+    left: 190px; top: 40px;
+    width: 960px; height: 600px;
+    background: var(--preto);
+    box-shadow: 0 0 0 6px #0d0d0d;
+    overflow: hidden;
+  }
+
+  /* ---------- MENSAGEM ---------- */
+  #mensagem {
+    position: absolute; left: 0; top: 0;
+    width: 960px; height: 600px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    color: #bbb;
+    font-size: 28px; font-weight: 500;
+    text-align: center;
+  }
+  #mensagem .marca-consola {
+    color: var(--amarelo);
+    font-size: 40px; font-weight: 900; letter-spacing: 2px;
+  }
+
+  /* ---------- BOTÕES FÍSICOS (fora do ecrã) ---------- */
+  .painel-fisico {
+    position: absolute; top: 40px;
+    width: 140px; height: 600px;
+  }
+  #painel-esq { left: 25px; }
+  #painel-dir { left: 1175px; }
+  #marca {
+    position: absolute; left: 0; top: 10px;
+    width: 140px; text-align: center;
+    color: #888;
+    font-size: 20px; font-weight: 900; letter-spacing: 3px;
+  }
+  .botao-fisico {
+    position: absolute; left: 20px;
+    width: 100px; height: 100px;
+    border-radius: 14px;
+    font-size: 20px; font-weight: 900; letter-spacing: 1px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+  .botao-fisico {
+    background: var(--amarelo);
+    color: #222;
+    box-shadow: 0 8px 0 #a8841a, 0 12px 14px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.45);
+  }
+  #btn-start, #btn-voltar { top: 170px; }
+  #btn-stop,  #btn-horn   { top: 330px; }
+  /* botão carregado: desce como um botão a sério */
+  .botao-fisico.premido {
+    transform: translateY(6px);
+    box-shadow: 0 2px 0 #a8841a, 0 4px 6px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.45);
+  }
+</style>
+</head>
+<body>
+
+<div id="consola">
+
+<div id="ecra">
+  <!-- ===== CONSOLA DESLIGADA ===== -->
+  <div id="mensagem">
+    <span>Pressionar START para ligar a consola</span>
+    <span class="marca-consola">BODET SCOREPAD</span>
+  </div>
+</div>
+
+<!-- ===== BOTÕES FÍSICOS DA CONSOLA (fora do ecrã) ===== -->
+<div id="painel-esq" class="painel-fisico">
+  <div id="btn-start" class="botao-fisico">START</div>
+  <div id="btn-stop" class="botao-fisico">STOP</div>
+</div>
+
+<div id="painel-dir" class="painel-fisico">
+  <div id="marca">BODET</div>
+  <div id="btn-voltar" class="botao-fisico">
+    <svg width="44" height="30" viewBox="0 0 44 30" fill="none" stroke="#222" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M40 15 H6 M16 4 L5 15 L16 26"/>
+    </svg>
+  </div>
+  <div id="btn-horn" class="botao-fisico">
+    <!-- buzina: caixinha à esquerda e corneta a abrir para a direita -->
+    <svg width="50" height="34" viewBox="0 0 50 34" fill="none" stroke="#222" stroke-width="4" stroke-linejoin="round">
+      <rect x="3" y="15" width="13" height="14" rx="2"/>
+      <path d="M16 15 L46 4 V29 H16"/>
+    </svg>
+  </div>
+</div>
+
+</div>
+
+<script>
+  // Escala a consola 1340x680 para caber na janela, mantendo a proporção
+  function ajustarEscala() {
+    const consola = document.getElementById('consola');
+    const escala = Math.min(window.innerWidth / 1340, window.innerHeight / 680);
+    consola.style.transform = 'translate(-50%, -50%) scale(' + escala + ')';
+  }
+  window.addEventListener('resize', ajustarEscala);
+  ajustarEscala();
+
+  // Botões físicos: atuam ao carregar (como os reais) e descem enquanto estão premidos
+  function botaoFisico(botao, acao) {
+    function soltar() { botao.classList.remove('premido'); }
+    botao.addEventListener('mousedown', function () {
+      botao.classList.add('premido');
+      acao();
+    });
+    botao.addEventListener('mouseup', soltar);
+    botao.addEventListener('mouseleave', soltar);
+  }
+
+  // Com a consola desligada só o START faz alguma coisa: liga e vai para a escolha do desporto
+  function ligarConsola() {
+    setTimeout(function () {
+      window.location.href = 'bodet-startup.html';
+    }, 150);   // deixa ver o botão a descer antes de mudar de página
+  }
+
+  botaoFisico(document.getElementById('btn-start'), ligarConsola);
+  botaoFisico(document.getElementById('btn-stop'), function () {});
+  botaoFisico(document.getElementById('btn-voltar'), function () {});
+  botaoFisico(document.getElementById('btn-horn'), function () {});
+</script>
+
+</body>
+</html>
